@@ -25,6 +25,9 @@ class UnknownMetadataTypeIDError(MapError):
 class InvalidParamLengthError(MapError):
     pass
 
+class EmptyMapBlockError(MapError):
+    pass
+
 ##=========================================##
 # 2. Containers Errors
 class ContainerError(MinetestException):

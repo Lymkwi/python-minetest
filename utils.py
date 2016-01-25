@@ -21,12 +21,22 @@ def posFromInt(pos, blocksize):
 
     return Pos({'x': posx, 'y': posy, 'z': pos})
 
+def intFromPos(pos, blocksize):
+    posint =  0
+    posint += pos.x
+    posint += pos.y * blocksize
+    posint += pos.z * blocksize * blocksize
+    return posint
+
 def int64(u):
     while u >= 2**63:
         u -= 2**64
     while u <= -2**63:
         u += 2**64
     return u
+
+def getMapBlockPos(pos):
+    return pos.z * 4096 * 4096 + pos.y * 4096 + pos.x
 
 def getIntegerAsBlock(i):
     x = unsignedToSigned(i % 4096, 2048)
@@ -62,6 +72,7 @@ class Pos:
     def getAsTuple(self):
         return (self.x, self.y, self.z)
 
+# Thanks to @gravgun for those
 # Big-endian!!!
 def readU8(strm):
     return (ord(strm.read(1)))

@@ -9,12 +9,13 @@
 import sqlite3 as _sql
 import zlib
 from io import BytesIO
+import math
 
-from errors import MapError, EmptyMapVesselError, UnknownMetadataTypeIDError, InvalidParamLengthError
-from utils import readU8, readU16, readU32, readS32, Pos, posFromInt
+from errors import MapError, EmptyMapVesselError, UnknownMetadataTypeIDError, InvalidParamLengthError, EmptyMapBlockError, OutOfBordersCoordinates
+from utils import readU8, readU16, readU32, readS32, Pos, posFromInt, getMapBlockPos
 from metadata import NodeMetaRef
 from inventory import getSerializedInventory
-from nodes import NodeTimerRef
+from nodes import NodeTimerRef, Node
 
 # Bitmask constants
 IS_UNDERGROUND = 1
@@ -22,16 +23,25 @@ DAY_NIGHT_DIFFERS = 2
 LIGHTING_EXPIRED = 4
 GENERATED = 8
 
+def determineMapBlock(pos):
+    posx = math.floor(pos.x / 16)
+    posy = math.floor(pos.y / 16)
+    posz = math.floor(pos.z / 16)
+
+    return Pos({'x': posx, 'y': posy, 'z': posz})
+
 class MapBlock:
     def __init__(self, data = None):
         if data:
             self.explode(data)
         else:
+            self.nodes = dict()
             self.version = 0
+            self.mapblocksize = 16 # Normally
             self.bitmask = b"08"
             self.content_width = 2
             self.param_width = 2
-            self.node_data = dict()
+            node_data = dict()
             self.node_meta = dict()
             self.node_timers = dict()
             self.static_object_version = 0 #u8
@@ -44,6 +54,16 @@ class MapBlock:
             self.single_timer_data_length = 10 #u8
             self.timer_counts = 0 #u16
             self.timers = dict() #u16, s32, s32
+            self.loaded = False
+
+    def get_node(self, mapblockpos):
+        if not self.loaded:
+            raise EmptyMapBlockError
+
+        if mapblockpos < 0 or mapblockpos >= 4096:
+            raise OutOfBordersCoordinates
+
+        return self.nodes[mapblockpos]
 
     def explode(self, bytelist):
         data = BytesIO(bytelist)
@@ -54,7 +74,8 @@ class MapBlock:
         self.content_width = readU8(data)
         self.param_width = readU8(data)
 
-        self.node_data = dict()
+        self.nodes = dict()
+        node_data = dict()
 
         k = b""
         while True:
@@ -69,15 +90,23 @@ class MapBlock:
             else:
                 break
 
-        self.node_data["param0"] = [ int(b) for b in c_width_data.read(4096 * self.content_width) ]
-        self.node_data["param1"] = [ int(b) for b in c_width_data.read(4096) ]
-        self.node_data["param2"] = [ int(b) for b in c_width_data.read(4096) ]
+        node_data["param0"] = []
+        for _ in range(4096):
+            if self.content_width == 1:
+                b = readU8(c_width_data)
+            else:
+                b = readU16(c_width_data)
+
+            node_data["param0"].append(int(b))
+
+        node_data["param1"] = [ int(b) for b in c_width_data.read(4096) ]
+        node_data["param2"] = [ int(b) for b in c_width_data.read(4096) ]
 
         try:
-            assert(len(self.node_data["param0"]) == 4096 * self.content_width)
-            assert(len(self.node_data["param1"]) == 4096)
-            assert(len(self.node_data["param2"]) == 4096)
-        except AssertError:
+            assert(len(node_data["param0"]) == 4096)
+            assert(len(node_data["param1"]) == 4096)
+            assert(len(node_data["param2"]) == 4096)
+        except AssertionError:
             raise InvalidParamLengthError()
 
         k = b""
@@ -245,7 +274,7 @@ class MapBlock:
         for _ in range(self.num_name_id_mappings):
             # u16 id, u8 [u16 name_len] name
             id = readU16(data)
-            name = [ readU8(data) for _ in range(readU16(data)) ]
+            name = "".join([ chr(readU8(data)) for _ in range(readU16(data)) ])
             self.name_id_mappings[id] = name
 
         if self.version == 25:
@@ -262,7 +291,14 @@ class MapBlock:
                 elapsed = readS32(data) / 1000
                 self.timers[pos] = NodeTimerRef(pos, timeout, elapsed)
 
+        for id in range(4096):
+            itemstring = self.name_id_mappings[node_data["param0"][id]]
+            param1 = node_data["param1"][id]
+            param2 = node_data["param2"][id]
+            self.nodes[id] = Node(posFromInt(id, self.mapblocksize), itemstring, param1 = param1, param2 = param2)
+
         # EOF!
+        self.loaded = True
 
 class MapVessel:
     def __init__(self, mapfile, backend = "sqlite3"):
@@ -289,6 +325,7 @@ class MapVessel:
     def close(self):
         self.conn.close()
         self.cache = None
+        self.mapblocks = None
         self.mapfile = None
 
     def read(self, blockID):
@@ -336,6 +373,47 @@ class MapVessel:
             raise EmptyMapVesselError()
 
         if not self.cache.get(blockID):
-            return False, "notread"
+            #return False, "notread"
+            res, code = self.read(blockID)
+            if not res and code == "notfound":
+                return
+            elif not res:
+                return res, code
 
         return MapBlock(self.cache[blockID])
+
+
+class MapInterface:
+    def __init__(self, datafile, backend = "sqlite3"):
+        self.datafile = datafile
+        self.interface = MapVessel(datafile, backend)
+        self.mapblocks = dict()
+        self.cache_history = []
+        self.max_cache_size = 100
+
+    def unloadMapBlock(self, blockID):
+        self.mapblocks[blockID] = None
+        del self.cache_history[self.cache_history.index(blockID)]
+
+        self.interface.uncache(blockID)
+
+    def loadMapBlock(self, blockID):
+        self.mapblocks[blockID] = self.interface.load(blockID)
+        if not blockID in self.cache_history:
+            self.cache_history.append(blockID)
+            if len(self.cache_history) > self.max_cache_size:
+                self.interface.uncache(self.cache_history[0])
+                del self.mapblocks[self.cache_history[0]]
+                del self.cache_history[0]
+
+    def get_node(self, pos):
+        mapblock = determineMapBlock(pos)
+        mapblockpos = getMapBlockPos(mapblock)
+        if not self.mapblocks.get(mapblockpos):
+            self.loadMapBlock(mapblockpos)
+
+        if not self.mapblocks.get(mapblockpos):
+            self.unloadMapBlock(mapblockpos)
+            return Node(pos, "ignore")
+
+        return self.mapblocks[mapblockpos].get_node((pos.x % 16) + (pos.y % 16) * 16 + (pos.z % 16) * 16 * 16)

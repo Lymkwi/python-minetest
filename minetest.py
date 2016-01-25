@@ -3,8 +3,11 @@
 ##################################
 ## Python Library to manipulate
 ## Minetest's files
+## By Mg, license : WTFPL
 ##
+#
 
 import utils
 from utils import Pos
-from map import MapVessel
+from map import MapInterface
+import map

@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 # -*- encoding: utf8 -*-
 ###########################
-## Maps for Python-MT
+## Nodes for Python-MT
 ##
 ##
 #
@@ -33,3 +33,18 @@ class NodeTimerRef:
 
     def is_started(self):
         return self.active
+
+class Node:
+    def __init__(self, pos, itemstring, param1 = 0, param2 = 0):
+        self.pos = pos
+        self.itemstring = itemstring
+        self.param1, self.param2 = param1, param2
+
+    def __repr__(self):
+        return self.__str__()
+
+    def __str__(self):
+        return self.itemstring
+
+    def get_name(self):
+        return self.itemstring
