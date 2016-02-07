@@ -63,14 +63,25 @@ class Pos:
     def __str__(self):
         return "({0}, {1}, {2})".format(self.x, self.y, self.z)
 
+    def __repr__(self):
+	    return str(self)
+
     def __eq__(self, other):
         return self.x == other.x and self.y == other.y and self.z == other.z
 
-    def getAsInt(self):
-        return int64(self.z * 4096 * 4096 + self.y * 4096 + self.x)
+    def getAsInt(self, max_val = 16):
+        return int64(self.z * max_val * max_val + self.y * max_val + self.x)
 
     def getAsTuple(self):
         return (self.x, self.y, self.z)
+
+    def fromTuple(self, tup):
+        if len(tup) < 3:
+            return False
+
+        self.x, self.y, self.z = tup[0], tup[1], tup[2]
+        self.dict = {'x': self.x, 'y': self.y, 'z': self.z}
+        return self
 
 # Thanks to @gravgun for those
 # Big-endian!!!
@@ -105,3 +116,32 @@ def readS32(strm):
         return -pow(2,31) + (u-pow(2,31))
     else:
         return u
+
+def writeU8(strm, val):
+    strm.write(bytes([val]))#bytes(chr(val), encoding = 'utf8'))
+
+def writeU16(strm, val):
+    vals = []
+    for _ in range(2):
+        k = val % 256
+        vals.insert(0, k)
+        val -= k
+        val = int(val/256)
+
+    strm.write(bytes(vals))
+#    strm.write(bytes(chr(val >> 8), encoding = 'utf8'))
+#    strm.write(bytes(chr(val), encoding = 'utf8'))
+
+def writeU32(strm, val):
+    vals = []
+    for _ in range(4):
+        k = val % 256
+        vals.insert(0, k)
+        val -= k
+        val = int(val/256)
+
+    strm.write(bytes(vals))
+#    strm.write(bytes(chr(val >> 24), encoding = 'utf8'))
+#    strm.write(bytes(chr(val >> 16), encoding = 'utf8'))
+#    strm.write(bytes(chr(val >> 8), encoding = 'utf8'))
+#    strm.write(bytes(chr(val), encoding = 'utf8'))

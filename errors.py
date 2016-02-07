@@ -28,6 +28,9 @@ class InvalidParamLengthError(MapError):
 class EmptyMapBlockError(MapError):
     pass
 
+class IgnoreContentReplacementError(MapError):
+    pass
+
 ##=========================================##
 # 2. Containers Errors
 class ContainerError(MinetestException):

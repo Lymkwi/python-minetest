@@ -11,10 +11,10 @@ from utils import Pos
 
 
 class NodeMetaRef:
-    def __init__(self, spos = Pos(), meta = dict(), inv = InvRef()):
-        self.data = meta
-        self.pos = spos
-        self.inv = inv
+    def __init__(self, spos = None, meta = None, inv = None):
+        self.data = meta or dict()
+        self.pos = spos or Pos()
+        self.inv = inv or InvRef()
 
     def get_raw(self, key):
         return self.data.get(key)

@@ -11,10 +11,10 @@ import zlib
 from io import BytesIO
 import math
 
-from errors import MapError, EmptyMapVesselError, UnknownMetadataTypeIDError, InvalidParamLengthError, EmptyMapBlockError, OutOfBordersCoordinates
-from utils import readU8, readU16, readU32, readS32, Pos, posFromInt, getMapBlockPos
+from errors import MapError, IgnoreContentReplacementError, EmptyMapVesselError, UnknownMetadataTypeIDError, InvalidParamLengthError, EmptyMapBlockError, OutOfBordersCoordinates
+from utils import *
 from metadata import NodeMetaRef
-from inventory import getSerializedInventory
+from inventory import getSerializedInventory, deserializeInventory, InvRef
 from nodes import NodeTimerRef, Node
 
 # Bitmask constants
@@ -41,9 +41,7 @@ class MapBlock:
             self.bitmask = b"08"
             self.content_width = 2
             self.param_width = 2
-            node_data = dict()
             self.node_meta = dict()
-            self.node_timers = dict()
             self.static_object_version = 0 #u8
             self.static_object_count = 0 #u16
             self.static_objects = [] #u8, s32, s32, s32, u16, u8
@@ -53,8 +51,107 @@ class MapBlock:
             self.name_id_mappings = dict() #u16, u8[u16]
             self.single_timer_data_length = 10 #u8
             self.timer_counts = 0 #u16
-            self.timers = dict() #u16, s32, s32
+            self.node_timers = dict() #u16, s32, s32
             self.loaded = False
+
+    def create_name_id_mappings(self):
+        names = []
+        for node in self.nodes.values():
+            if not node.itemstring in names:
+                names.append(node.itemstring)
+
+        return names
+
+    def implode(self):
+        data = BytesIO(b"")
+        writeU8(data, self.version)
+        writeU8(data, self.bitmask)
+        writeU8(data, self.content_width)
+        writeU8(data, self.param_width)
+
+        # Node params
+        node_data = {"param0": [], "param1": [], "param2": []}
+        self.name_id_mappings = self.create_name_id_mappings()
+
+        for node in self.nodes.values():
+            node_data["param0"].append(self.name_id_mappings.index(node.itemstring))
+            node_data["param1"].append(node.param1)
+            node_data["param2"].append(node.param2)
+
+        c_width_data = BytesIO(b"")
+        for b in node_data["param0"]:
+            writeU16(c_width_data, b)
+
+        for b in node_data["param1"]:
+            writeU8(c_width_data, b)
+
+        for b in node_data["param2"]:
+            writeU8(c_width_data, b)
+
+        data.write(zlib.compress(c_width_data.getvalue()))
+
+        # Metadata
+        # Meta version
+        meta_data = BytesIO(b"")
+        writeU8(meta_data, 1)
+        writeU16(meta_data, len(self.node_meta))
+        for meta_key in self.node_meta.keys():
+
+            meta = self.node_meta[meta_key]
+            writeU16(meta_data, meta.pos.getAsInt())
+            writeU32(meta_data, len(meta.data.keys()))
+
+            for meta_key in list(meta.data.keys()):
+                writeU16(meta_data, len(meta_key))
+
+                for b in meta_key:
+                    writeU8(meta_data, ord(b))
+
+                writeU32(meta_data, len(meta.data[meta_key]))
+                for b in meta.data[meta_key]:
+                    writeU8(data, b)
+
+            for c in meta.get_inventory().to_string():
+                meta_data.write(c.encode("utf8"))
+
+        data.write(zlib.compress(meta_data.getvalue()))
+
+        # Static object version
+        writeU8(data, 0)
+        writeU16(data, self.static_object_count)
+
+        for obj in self.static_objects:
+            writeU8(data, obj["type"])
+            writeU32(data, obj["pos"].x * 1000) # Should be S32 but it has the same result
+            writeU32(data, obj["pos"].y * 1000)
+            writeU32(data, obj["pos"].z * 1000)
+            writeU16(data, len(obj["data"]))
+            for b in obj["data"]:
+                writeU8(data, ord(b))
+
+        # Last time it was modified
+        writeU32(data, self.timestamp)
+
+        # ID mappings starts here
+        writeU8(data, self.name_id_mapping_version)
+        self.num_id_mappings = len(self.name_id_mappings)
+        writeU16(data, self.num_name_id_mappings)
+        for i in range(self.num_id_mappings):
+            writeU16(data, i)
+            writeU16(data, len(self.name_id_mappings[i]))
+            for b in self.name_id_mappings[i]:
+                writeU8(data, ord(b))
+
+        # Node timers
+        writeU8(data, self.single_timer_data_length) # Always 2+4+4=10
+        writeU16(data, len(self.node_timers))
+        for timer in self.node_timers.values():
+            writeU16(data, timer.pos.getAsInt())
+            writeU32(data, int(timer.timeout * 1000))
+            writeU32(data, int(timer.elapsed * 1000))
+
+        # EOF.
+        return data.getvalue()
 
     def get_node(self, mapblockpos):
         if not self.loaded:
@@ -64,6 +161,25 @@ class MapBlock:
             raise OutOfBordersCoordinates
 
         return self.nodes[mapblockpos]
+
+    def set_node(self, mapblockpos, node):
+        if not self.loaded:
+            raise EmptyMapBlockError
+
+        if mapblockpos < 0 or mapblockpos >= 4096:
+            raise OutOfBordersCoordinates
+
+
+        if self.node_meta.get(mapblockpos):
+            del self.node_meta[mapblockpos]
+        if self.node_timers.get(mapblockpos):
+            del self.node_timers[mapblockpos]
+
+        self.nodes[mapblockpos] = node
+
+        self.name_id_mappings = self.create_name_id_mappings()
+        self.num_id_mappings = len(self.name_id_mappings)
+        return True
 
     def explode(self, bytelist):
         data = BytesIO(bytelist)
@@ -125,9 +241,9 @@ class MapBlock:
         self.node_meta = dict()
         if self.version <= 22:
             self.meta_version = readU16(node_meta_list)
-            self.metadata_count = readU16(node_meta_list)
+            metadata_count = readU16(node_meta_list)
 
-            for i in range(self.metadata_count):
+            for i in range(metadata_count):
                 pos = posFromInt(readU16(node_meta_list), self.mapblocksize).getAsTuple()
                 self.node_meta[pos] = NodeMetaRef(pos)
 
@@ -187,7 +303,7 @@ class MapBlock:
                     # (which will probably fail)
 
                     # serialized inventory
-                    self.node_meta[pos].get_inventory().from_list(getSerializedInventory(node_meta_list))
+                    self.node_meta[pos].get_inventory().from_string(getSerializedInventory(node_meta_list))
 
 
                 elif type_id == 17:
@@ -197,7 +313,7 @@ class MapBlock:
                     self.node_meta[pos].set_raw("owner", "".join([ readU8(node_meta_list) for _ in range(readU16(node_meta_list)) ]))
 
                     # serialized inventory
-                    self.node_meta[pos].get_inventory().from_list(getSerializedInventory(node_meta_list))
+                    self.node_meta[pos].get_inventory().from_string(getSerializedInventory(node_meta_list))
 
                 else:
                     raise UnknownMetadataTypeIDError("Unknown metadata type ID: {0}".format(type_id))
@@ -212,11 +328,12 @@ class MapBlock:
                 pass
 
             else:
-                self.metadata_count = readU16(node_meta_list)
+                metadata_count = readU16(node_meta_list)
 
-                for _ in range(self.metadata_count):
-                    pos = posFromInt(readU16(node_meta_list), self.mapblocksize).getAsTuple()
-                    self.node_meta[pos] = NodeMetaRef(pos)
+                for _ in range(metadata_count):
+                    posObj = posFromInt(readU16(node_meta_list), self.mapblocksize)
+                    pos = posObj.getAsInt()
+                    self.node_meta[pos] = NodeMetaRef(posObj)
 
                     num_vars = readU32(node_meta_list)
                     for _ in range(num_vars):
@@ -227,7 +344,7 @@ class MapBlock:
                         val = [readU8(node_meta_list) for _ in range(val_len)]
                         self.node_meta[pos].set_raw(key, val)
 
-                    self.node_meta[pos].get_inventory().from_list(getSerializedInventory(node_meta_list))
+                    self.node_meta[pos].get_inventory().from_string(getSerializedInventory(node_meta_list))
 
         # We skip node_timers for now, not used in v23, v24 never released, and v25 has them later
 
@@ -284,12 +401,12 @@ class MapBlock:
             # u16 num_of_timers
             self.timer_counts = readU16(data)
 
-            self.timers = dict()
+            self.node_timers = dict()
             for _ in range(self.timer_counts):
                 pos = posFromInt(readU16(data), 16).getAsTuple()
                 timeout = readS32(data) / 1000
                 elapsed = readS32(data) / 1000
-                self.timers[pos] = NodeTimerRef(pos, timeout, elapsed)
+                self.node_timers[pos] = NodeTimerRef(Pos().fromTuple(pos), timeout, elapsed)
 
         for id in range(4096):
             itemstring = self.name_id_mappings[node_data["param0"][id]]
@@ -359,14 +476,14 @@ class MapVessel:
         if self.isEmpty():
             raise EmptyMapVesselError()
 
-        if not self.cache.get(blockID):
-            return False, "notread"
-
         try:
-            self.cur.execute("REPLACE INTO 'blocks' ('pos', 'data') VALUES ({0}, ?)".format(blockID),
+            self.cur.execute("REPLACE INTO `blocks` (`pos`, `data`) VALUES ({0}, ?)".format(blockID),
                 [self.cache[blockID]])
+            #self.cur.execute("COMMIT")
         except _sql.OperationalError as err:
             raise MapError(err)
+        print(self.cur.fetchall())
+        self.conn.commit()
 
     def load(self, blockID):
         if self.isEmpty():
@@ -382,6 +499,15 @@ class MapVessel:
 
         return MapBlock(self.cache[blockID])
 
+    def store(self, blockID, mapblockData):
+        if self.isEmpty():
+            raise EmptyMapVesselError()
+
+        if not self.cache.get(blockID):
+            return False, "notread"
+
+        self.cache[blockID] = mapblockData
+        return True
 
 class MapInterface:
     def __init__(self, datafile, backend = "sqlite3"):
@@ -390,12 +516,27 @@ class MapInterface:
         self.mapblocks = dict()
         self.cache_history = []
         self.max_cache_size = 100
+        self.mod_cache = []
+        self.force_save_on_unload = False
 
     def unloadMapBlock(self, blockID):
         self.mapblocks[blockID] = None
         del self.cache_history[self.cache_history.index(blockID)]
+        if self.mod_cache.index(blockID) != -1:
+            if not self.force_save_on_unload:
+                print("Unloading unsaved mapblock at pos {0}!".format(blockID))
+                del self.mod_cache[self.mod_cache.index(blockID)]
+            else:
+                print("Saving unsaved mapblock at pos {0} before unloading it.".format(blockID))
+                self.saveMapBlock(blockID)
 
         self.interface.uncache(blockID)
+
+    def setMaxCacheSize(self, size):
+        if type(size) != type(0):
+            raise TypeError("Invalid type for size: {0}".format(type(size)))
+
+        self.max_cache_size = size
 
     def loadMapBlock(self, blockID):
         self.mapblocks[blockID] = self.interface.load(blockID)
@@ -403,8 +544,17 @@ class MapInterface:
             self.cache_history.append(blockID)
             if len(self.cache_history) > self.max_cache_size:
                 self.interface.uncache(self.cache_history[0])
-                del self.mapblocks[self.cache_history[0]]
-                del self.cache_history[0]
+                self.unloadMapBlock(self.cache_history[0])
+
+    def saveMapBlock(self, blockID):
+        if not self.mapblocks.get(blockID):
+            return False
+
+        print("Saving block at pos {0} ({1})".format(blockID, posFromInt(blockID, 4096)))
+        self.interface.store(blockID, self.mapblocks[blockID].implode())
+        self.interface.write(blockID)
+        del self.mod_cache[self.mod_cache.index(blockID)]
+        return True
 
     def get_node(self, pos):
         mapblock = determineMapBlock(pos)
@@ -417,3 +567,23 @@ class MapInterface:
             return Node(pos, "ignore")
 
         return self.mapblocks[mapblockpos].get_node((pos.x % 16) + (pos.y % 16) * 16 + (pos.z % 16) * 16 * 16)
+
+    def set_node(self, pos, node):
+        mapblock = determineMapBlock(pos)
+        mapblockpos = getMapBlockPos(mapblock)
+        if not self.mapblocks.get(mapblockpos):
+            self.loadMapBlock(mapblockpos)
+
+        if not self.mapblocks.get(mapblockpos):
+            self.unloadMapBlock(mapblockpos)
+            raise IgnoreContentReplacementError("Pos: " + pos)
+
+        node.pos = pos
+        if not mapblockpos in self.mod_cache:
+            self.mod_cache.append(mapblockpos)
+
+        return self.mapblocks[mapblockpos].set_node((pos.x % 16) + (pos.y % 16) * 16 + (pos.z % 16) * 16 * 16, node)
+
+    def save(self):
+        for blockID in self.mod_cache:
+            self.saveMapBlock(blockID)
