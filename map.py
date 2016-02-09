@@ -482,7 +482,6 @@ class MapVessel:
             #self.cur.execute("COMMIT")
         except _sql.OperationalError as err:
             raise MapError(err)
-        print(self.cur.fetchall())
         self.conn.commit()
 
     def load(self, blockID):
@@ -490,7 +489,6 @@ class MapVessel:
             raise EmptyMapVesselError()
 
         if not self.cache.get(blockID):
-            #return False, "notread"
             res, code = self.read(blockID)
             if not res and code == "notfound":
                 return

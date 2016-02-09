@@ -83,7 +83,7 @@ class Pos:
         self.dict = {'x': self.x, 'y': self.y, 'z': self.z}
         return self
 
-# Thanks to @gravgun for those
+# Thanks to @gravgun/elementW for those
 # Big-endian!!!
 def readU8(strm):
     return (ord(strm.read(1)))
@@ -124,24 +124,18 @@ def writeU16(strm, val):
     vals = []
     for _ in range(2):
         k = val % 256
-        vals.insert(0, k)
+        vals.insert(0, int(k))
         val -= k
-        val = int(val/256)
+        val /= 256
 
     strm.write(bytes(vals))
-#    strm.write(bytes(chr(val >> 8), encoding = 'utf8'))
-#    strm.write(bytes(chr(val), encoding = 'utf8'))
 
 def writeU32(strm, val):
     vals = []
     for _ in range(4):
         k = val % 256
-        vals.insert(0, k)
+        vals.insert(0, int(k))
         val -= k
-        val = int(val/256)
+        val /= 256
 
     strm.write(bytes(vals))
-#    strm.write(bytes(chr(val >> 24), encoding = 'utf8'))
-#    strm.write(bytes(chr(val >> 16), encoding = 'utf8'))
-#    strm.write(bytes(chr(val >> 8), encoding = 'utf8'))
-#    strm.write(bytes(chr(val), encoding = 'utf8'))

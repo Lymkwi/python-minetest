@@ -48,7 +48,6 @@ def findTheShelves():
 def buildPic(mapy, size):
 	im = Image.new("RGBA", (size*16, size*16))
 	hsize = int(size*8)
-	print(mapy)
 	for x in range(-hsize, hsize):
 		for z in range(-hsize, hsize):
 			im.putpixel((z+hsize, x+hsize), mapy[x * z*4096])
