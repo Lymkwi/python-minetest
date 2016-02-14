@@ -129,3 +129,20 @@ class InvRef:
         data.write("EndInventory\n")
 
         return data.getvalue()
+
+    # Some stuff from MT
+    def is_empty(self, listname):
+        if not self.lists.get(listname):
+            return True
+
+        for stack in self.lists[listname].values():
+            if stack.get_name() != "":
+                return False
+
+        return True
+
+    def get_size(self, listname):
+        if not self.lists.get(listname):
+            return 0
+        else:
+            return len(self.lists[listname])

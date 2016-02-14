@@ -72,6 +72,7 @@ class MapBlock:
         # Node params
         node_data = {"param0": [], "param1": [], "param2": []}
         self.name_id_mappings = self.create_name_id_mappings()
+        self.num_name_id_mappings = len(self.name_id_mappings)
 
         for node in self.nodes.values():
             node_data["param0"].append(self.name_id_mappings.index(node.itemstring))
@@ -109,7 +110,7 @@ class MapBlock:
 
                 writeU32(meta_data, len(meta.data[meta_key]))
                 for b in meta.data[meta_key]:
-                    writeU8(data, b)
+                    writeU8(meta_data, b)
 
             for c in meta.get_inventory().to_string():
                 meta_data.write(c.encode("utf8"))
@@ -134,9 +135,9 @@ class MapBlock:
 
         # ID mappings starts here
         writeU8(data, self.name_id_mapping_version)
-        self.num_id_mappings = len(self.name_id_mappings)
+        self.num_name_id_mappings = len(self.name_id_mappings)
         writeU16(data, self.num_name_id_mappings)
-        for i in range(self.num_id_mappings):
+        for i in range(self.num_name_id_mappings):
             writeU16(data, i)
             writeU16(data, len(self.name_id_mappings[i]))
             for b in self.name_id_mappings[i]:
@@ -153,22 +154,20 @@ class MapBlock:
         # EOF.
         return data.getvalue()
 
-    def get_node(self, mapblockpos):
+    def check_pos(self, mapblockpos):
         if not self.loaded:
             raise EmptyMapBlockError
 
         if mapblockpos < 0 or mapblockpos >= 4096:
             raise OutOfBordersCoordinates
+
+    def get_node(self, mapblockpos):
+        self.check_pos(mapblockpos)
 
         return self.nodes[mapblockpos]
 
     def set_node(self, mapblockpos, node):
-        if not self.loaded:
-            raise EmptyMapBlockError
-
-        if mapblockpos < 0 or mapblockpos >= 4096:
-            raise OutOfBordersCoordinates
-
+        self.check_pos(mapblockpos)
 
         if self.node_meta.get(mapblockpos):
             del self.node_meta[mapblockpos]
@@ -178,7 +177,7 @@ class MapBlock:
         self.nodes[mapblockpos] = node
 
         self.name_id_mappings = self.create_name_id_mappings()
-        self.num_id_mappings = len(self.name_id_mappings)
+        self.num_name_id_mappings = len(self.name_id_mappings)
         return True
 
     def explode(self, bytelist):
@@ -375,7 +374,7 @@ class MapBlock:
             self.static_objects.append({
                 "type": otype,
                 "pos": Pos({'x': pos_x_nodes, 'y': pos_y_nodes, 'z': pos_z_nodes}),
-                "data": odata,
+                "data": str(odata),
             })
 
         # u32 timestamp
@@ -412,10 +411,15 @@ class MapBlock:
             itemstring = self.name_id_mappings[node_data["param0"][id]]
             param1 = node_data["param1"][id]
             param2 = node_data["param2"][id]
-            self.nodes[id] = Node(posFromInt(id, self.mapblocksize), itemstring, param1 = param1, param2 = param2)
+            self.nodes[id] = Node(itemstring, param1 = param1, param2 = param2, pos = posFromInt(id, self.mapblocksize))
 
         # EOF!
         self.loaded = True
+
+    def get_meta(self, abspos):
+        self.check_pos(abspos)
+
+        return self.node_meta[abspos]
 
 class MapVessel:
     def __init__(self, mapfile, backend = "sqlite3"):
@@ -515,7 +519,11 @@ class MapInterface:
         self.cache_history = []
         self.max_cache_size = 100
         self.mod_cache = []
-        self.force_save_on_unload = False
+        self.force_save_on_unload = True
+
+    def modFlag(self, mapblockpos):
+        if not mapblockpos in self.mod_cache:
+            self.mod_cache.append(mapblockpos)
 
     def unloadMapBlock(self, blockID):
         self.mapblocks[blockID] = None
@@ -554,34 +562,45 @@ class MapInterface:
         del self.mod_cache[self.mod_cache.index(blockID)]
         return True
 
-    def get_node(self, pos):
-        mapblock = determineMapBlock(pos)
-        mapblockpos = getMapBlockPos(mapblock)
+    def check_for_pos(self, mapblockpos):
         if not self.mapblocks.get(mapblockpos):
             self.loadMapBlock(mapblockpos)
 
         if not self.mapblocks.get(mapblockpos):
             self.unloadMapBlock(mapblockpos)
-            return Node(pos, "ignore")
+            return False
+
+        return True
+
+    def get_node(self, pos):
+        mapblock = determineMapBlock(pos)
+        mapblockpos = getMapBlockPos(mapblock)
+        if not self.check_for_pos(mapblockpos):
+            return Node("ignore", pos = pos)
 
         return self.mapblocks[mapblockpos].get_node((pos.x % 16) + (pos.y % 16) * 16 + (pos.z % 16) * 16 * 16)
 
     def set_node(self, pos, node):
         mapblock = determineMapBlock(pos)
         mapblockpos = getMapBlockPos(mapblock)
-        if not self.mapblocks.get(mapblockpos):
-            self.loadMapBlock(mapblockpos)
-
-        if not self.mapblocks.get(mapblockpos):
-            self.unloadMapBlock(mapblockpos)
+        if not self.check_for_pos(mapblockpos):
             raise IgnoreContentReplacementError("Pos: " + pos)
 
         node.pos = pos
-        if not mapblockpos in self.mod_cache:
-            self.mod_cache.append(mapblockpos)
+        self.modFlag(mapblockpos)
 
         return self.mapblocks[mapblockpos].set_node((pos.x % 16) + (pos.y % 16) * 16 + (pos.z % 16) * 16 * 16, node)
 
     def save(self):
-        for blockID in self.mod_cache:
-            self.saveMapBlock(blockID)
+        while len(self.mod_cache) > 0:
+            self.saveMapBlock(self.mod_cache[0])
+        self.mod_cache = []
+
+    def get_meta(self, pos):
+        mapblock = determineMapBlock(pos)
+        mapblockpos = getMapBlockPos(mapblock)
+        self.modFlag(mapblockpos)
+        if not self.check_for_pos(mapblockpos):
+            return NodeMetaRef()
+
+        return self.mapblocks[mapblockpos].get_meta(intFromPos(pos, 16))

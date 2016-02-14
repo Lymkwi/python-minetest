@@ -35,7 +35,7 @@ class NodeTimerRef:
         return self.active
 
 class Node:
-    def __init__(self, pos, itemstring, param1 = 0, param2 = 0):
+    def __init__(self, itemstring, param1 = 0, param2 = 0, pos = Pos()):
         self.pos = pos
         self.itemstring = itemstring
         self.param1, self.param2 = param1, param2

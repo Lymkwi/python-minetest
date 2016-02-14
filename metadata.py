@@ -23,10 +23,21 @@ class NodeMetaRef:
         self.data[key] = val
 
     def get_string(self, key):
-        return str(self.data.get(key))
+        # Gather the integers into a string
+        data = self.data.get(key)
+        if not data:
+            return None
+
+        res = ""
+        for c in data:
+            if c >= 256 or c < 0:
+                return data # IT IS A NUMBER AAAAAH
+
+            res += chr(c)
+        return res
 
     def set_string(self, key, val):
-        self.data[key] = str(val)
+        self.data[key] = [ord(b) for b in val]
 
     def get_int(self, key):
         return int(self.data.get(key))

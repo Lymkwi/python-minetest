@@ -1,4 +1,4 @@
-#!/usr/bin/env python3
+#!/usr/bin/env python3.4
 # -*- encoding: utf-8 -*-
 ############################
 ## Tests ran for Python-MT
@@ -85,14 +85,25 @@ def testGetNode():
 
 def testSetNode():
 	db = minetest.MapInterface("./map.sqlite")
-	db.force_save_on_unload = True
 	f = open("./dump.bin", "w")
-	dummy = minetest.Node(Pos(), "default:nyancat", 0, 0)
-	print(db.get_node(Pos()))
-	print(db.set_node(Pos(), dummy))
+	dummy = minetest.Node("default:nyancat")
 
-	for y in range(0, 256):
+	for y in range(1, 256):
 		db.set_node(Pos({'x': 0, 'y': y, 'z': 0}), dummy)
+
+	db.save()
+
+def invManip():
+	db = minetest.MapInterface("./map.sqlite")
+	chest = db.get_meta(Pos({'x': 0, 'y': 0, 'z': 0}))
+	#print(chest)
+	inv = chest.get_inventory()
+	#print(inv)
+	#print(chest.get_string("formspec"))
+	#chest.set_string("formspec", chest.get_string("formspec") + "button[0,0;1,0.5;moo;Moo]")
+	#print(chest.get_string("formspec"))
+	print(inv.is_empty("main"))
+	print(inv.get_size("main"))
 
 	db.save()
 
@@ -101,4 +112,5 @@ if __name__ == "__main__":
     #testMapBlockLoad()
     #testSignedEndians()
     #testGetNode()
-    testSetNode()
+    #testSetNode()
+	invManip()
