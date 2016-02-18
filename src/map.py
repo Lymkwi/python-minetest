@@ -16,6 +16,7 @@ from utils import *
 from metadata import NodeMetaRef
 from inventory import getSerializedInventory, deserializeInventory, InvRef
 from nodes import NodeTimerRef, Node
+from schematics import Schematic
 
 # Bitmask constants
 IS_UNDERGROUND = 1
@@ -31,7 +32,9 @@ def determineMapBlock(pos):
     return Pos({'x': posx, 'y': posy, 'z': posz})
 
 class MapBlock:
-    def __init__(self, data = None):
+    def __init__(self, data = None, abspos = 0):
+        self.abspos = abspos
+        self.mapblockpos = posFromInt(self.abspos, 4096)
         if data:
             self.explode(data)
         else:
@@ -179,6 +182,12 @@ class MapBlock:
         self.name_id_mappings = self.create_name_id_mappings()
         self.num_name_id_mappings = len(self.name_id_mappings)
         return True
+
+    def add_node(self, mapblockpos, node):
+        self.set_node(self, mapblockpos, node)
+
+    def remove_node(self, mapblockpos):
+        self.set_node(mapblockpos, Node("air"))
 
     def explode(self, bytelist):
         data = BytesIO(bytelist)
@@ -373,7 +382,7 @@ class MapBlock:
 
             self.static_objects.append({
                 "type": otype,
-                "pos": Pos({'x': pos_x_nodes, 'y': pos_y_nodes, 'z': pos_z_nodes}),
+                "pos": Pos({'x': pos_x_nodes + self.mapblockpos.x, 'y': pos_y_nodes + self.mapblockpos.y, 'z': pos_z_nodes + self.mapblockpos.z}),
                 "data": str(odata),
             })
 
@@ -411,7 +420,11 @@ class MapBlock:
             itemstring = self.name_id_mappings[node_data["param0"][id]]
             param1 = node_data["param1"][id]
             param2 = node_data["param2"][id]
-            self.nodes[id] = Node(itemstring, param1 = param1, param2 = param2, pos = posFromInt(id, self.mapblocksize))
+            pos = posFromInt(id, self.mapblocksize)
+            pos.x += self.mapblockpos.x
+            pos.z += self.mapblockpos.z
+            pos.y += self.mapblockpos.y
+            self.nodes[id] = Node(itemstring, param1 = param1, param2 = param2, pos = pos)
 
         # EOF!
         self.loaded = True
@@ -419,7 +432,7 @@ class MapBlock:
     def get_meta(self, abspos):
         self.check_pos(abspos)
 
-        return self.node_meta[abspos]
+        return self.node_meta.get(abspos) or NodeMetaRef()
 
 class MapVessel:
     def __init__(self, mapfile, backend = "sqlite3"):
@@ -483,9 +496,11 @@ class MapVessel:
         try:
             self.cur.execute("REPLACE INTO `blocks` (`pos`, `data`) VALUES ({0}, ?)".format(blockID),
                 [self.cache[blockID]])
-            #self.cur.execute("COMMIT")
+
         except _sql.OperationalError as err:
             raise MapError(err)
+
+    def commit(self):
         self.conn.commit()
 
     def load(self, blockID):
@@ -499,7 +514,7 @@ class MapVessel:
             elif not res:
                 return res, code
 
-        return MapBlock(self.cache[blockID])
+        return MapBlock(self.cache[blockID], abspos = blockID)
 
     def store(self, blockID, mapblockData):
         if self.isEmpty():
@@ -521,38 +536,45 @@ class MapInterface:
         self.mod_cache = []
         self.force_save_on_unload = True
 
-    def modFlag(self, mapblockpos):
+    def mod_flag(self, mapblockpos):
         if not mapblockpos in self.mod_cache:
             self.mod_cache.append(mapblockpos)
 
-    def unloadMapBlock(self, blockID):
+    def unload_mapblock(self, blockID):
         self.mapblocks[blockID] = None
         del self.cache_history[self.cache_history.index(blockID)]
-        if self.mod_cache.index(blockID) != -1:
+        if blockID in self.mod_cache:
             if not self.force_save_on_unload:
                 print("Unloading unsaved mapblock at pos {0}!".format(blockID))
                 del self.mod_cache[self.mod_cache.index(blockID)]
             else:
                 print("Saving unsaved mapblock at pos {0} before unloading it.".format(blockID))
-                self.saveMapBlock(blockID)
+                self.save_mapblock(blockID)
 
         self.interface.uncache(blockID)
 
-    def setMaxCacheSize(self, size):
+    def set_maxcachesize(self, size):
         if type(size) != type(0):
             raise TypeError("Invalid type for size: {0}".format(type(size)))
 
         self.max_cache_size = size
+        self.check_cache()
 
-    def loadMapBlock(self, blockID):
+    def check_cache(self):
+        while len(self.interface.cache) > self.max_cache_size:
+            self.interface.uncache(self.cache_history[0])
+            self.unload_mapblock(self.cache_history[0])
+
+    def get_maxcachesize(self):
+        return self.max_cache_size
+
+    def load_mapblock(self, blockID):
         self.mapblocks[blockID] = self.interface.load(blockID)
         if not blockID in self.cache_history:
             self.cache_history.append(blockID)
-            if len(self.cache_history) > self.max_cache_size:
-                self.interface.uncache(self.cache_history[0])
-                self.unloadMapBlock(self.cache_history[0])
+            self.check_cache()
 
-    def saveMapBlock(self, blockID):
+    def save_mapblock(self, blockID):
         if not self.mapblocks.get(blockID):
             return False
 
@@ -564,10 +586,10 @@ class MapInterface:
 
     def check_for_pos(self, mapblockpos):
         if not self.mapblocks.get(mapblockpos):
-            self.loadMapBlock(mapblockpos)
+            self.load_mapblock(mapblockpos)
 
         if not self.mapblocks.get(mapblockpos):
-            self.unloadMapBlock(mapblockpos)
+            self.unload_mapblock(mapblockpos)
             return False
 
         return True
@@ -587,20 +609,54 @@ class MapInterface:
             raise IgnoreContentReplacementError("Pos: " + pos)
 
         node.pos = pos
-        self.modFlag(mapblockpos)
+        self.mod_flag(mapblockpos)
 
         return self.mapblocks[mapblockpos].set_node((pos.x % 16) + (pos.y % 16) * 16 + (pos.z % 16) * 16 * 16, node)
 
+    def remove_node(self, pos):
+        mapblock = determineMapBlock(pos)
+        mapblockpos = getMapBlockPos(mapblock)
+        if not self.check_for_pos(mapblockpos):
+            return
+
+        return self.mapblocks[mapblockpos].remove_node((pos.x % 16) + (pos.y % 16) * 16 + (pos.z % 16) * 16 * 16, node)
+
     def save(self):
         while len(self.mod_cache) > 0:
-            self.saveMapBlock(self.mod_cache[0])
+            self.save_mapblock(self.mod_cache[0])
         self.mod_cache = []
+
+        self.interface.commit()
 
     def get_meta(self, pos):
         mapblock = determineMapBlock(pos)
         mapblockpos = getMapBlockPos(mapblock)
-        self.modFlag(mapblockpos)
+        self.mod_flag(mapblockpos)
         if not self.check_for_pos(mapblockpos):
             return NodeMetaRef()
 
         return self.mapblocks[mapblockpos].get_meta(intFromPos(pos, 16))
+
+    # The schematics stuff
+    def export_schematic(self, startpos, endpos, forceplace = True):
+
+        # Get the corners first
+        spos = Pos({"x": min(startpos.x, endpos.x), "y":  min(startpos.y, endpos.y), "z": min(startpos.z, endpos.z)})
+        epos = Pos({"x": max(startpos.x, endpos.x), "y":  max(startpos.y, endpos.y), "z": max(startpos.z, endpos.z)})
+
+        schem = {}
+        schem["size"] = {"x": epos.x - spos.x, "y": epos.y - spos.y, "z": epos.z - spos.y}
+        schem["data"] = {}
+        for x in range(schem["size"]["x"]):
+            for y in range(schem["size"]["y"]):
+                for z in range(schem["size"]["z"]):
+                    schem["data"][x + (y * schem["size"]["x"]) + (z * schem["size"]["y"] * schem["size"]["x"])] = {
+                        "name": self.get_node(Pos({"x": spos.x + x, "y": spos.y + y, "z": spos.z + z})).get_name(),
+                        "prob": 255,
+                        "force_place": forceplace
+                    }
+
+        sch = Schematic()
+        sch.serialize_schematic(schem)
+
+        return sch

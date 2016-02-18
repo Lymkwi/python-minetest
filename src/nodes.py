@@ -48,3 +48,24 @@ class Node:
 
     def get_name(self):
         return self.itemstring
+
+    def get_param1(self):
+        return self.param1
+
+    def get_param2(self):
+        return self.param2
+
+    def get_pos(self):
+        return self.pos
+
+    def set_name(self, name):
+        self.itemstring = name
+
+    def set_param1(self, param):
+        self.param1 = param
+
+    def set_param2(self, param):
+        self.param2 = param
+
+    def set_pos(self, pos):
+        self.pos = pos
