@@ -441,12 +441,23 @@ class MapVessel:
         self.open(mapfile, backend)
 
     def __str__(self):
-        if self.isEmpty():
+        if self.is_empty():
             return "empty mapfile vessel"
         else:
             return "mapfile vessel for {0}".format(self.mapfile)
 
-    def isEmpty(self):
+    def get_all_mapblock_ids(self):
+        if self.is_empty():
+            raise EmptyMapVesselError()
+
+        try:
+            self.cur.execute("SELECT \"pos\" from \"blocks\"")
+        except _sql.OperationalError as err:
+            raise MapError("Error retrieving all mapblock pos : {0}".format(err))
+
+        return [id[0] for id in self.cur.fetchall()]
+
+    def is_empty(self):
         return self.mapfile == None
 
     def open(self, mapfile, backend = "sqlite3"):
@@ -463,7 +474,7 @@ class MapVessel:
         self.mapfile = None
 
     def read(self, blockID):
-        if self.isEmpty():
+        if self.is_empty():
             raise EmptyMapVesselError()
 
         if self.cache.get(blockID):
@@ -482,7 +493,7 @@ class MapVessel:
             return False, "notfound"
 
     def uncache(self, blockID):
-        if self.isEmpty():
+        if self.is_empty():
             raise EmptyMapVesselError()
 
         self.cache[blockID] = None
@@ -490,7 +501,7 @@ class MapVessel:
         return True, "ok"
 
     def write(self, blockID):
-        if self.isEmpty():
+        if self.is_empty():
             raise EmptyMapVesselError()
 
         try:
@@ -504,7 +515,7 @@ class MapVessel:
         self.conn.commit()
 
     def load(self, blockID):
-        if self.isEmpty():
+        if self.is_empty():
             raise EmptyMapVesselError()
 
         if not self.cache.get(blockID):
@@ -517,7 +528,7 @@ class MapVessel:
         return MapBlock(self.cache[blockID], abspos = blockID)
 
     def store(self, blockID, mapblockData):
-        if self.isEmpty():
+        if self.is_empty():
             raise EmptyMapVesselError()
 
         if not self.cache.get(blockID):
