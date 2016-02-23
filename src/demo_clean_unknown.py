@@ -10,6 +10,7 @@
 #
 
 import minetest
+import time
 
 def removeUnknowns():
     import sys
@@ -36,17 +37,24 @@ def removeUnknowns():
     nids = len(ids)
     print("{0} mapblocks to inspect".format(nids))
 
-    for i in ids:
+    s = time.time()
+    eta = 0
+
+    for index in range(len(ids)):
+        i = ids[index]
         k = u.load(i)
         absi = minetest.utils.posFromInt(i, 4096)
-        pct = ids.index(i)/nids * 100
-        print("[{0:3.2f}%] Checking mapblock {1} ({2})".format(pct, i, absi), end = "     \r")
+        pct = index/nids * 100
+        if index % 10 == 0:
+            eta = ((time.time() - s) / (index+1)) * (nids - index)
+            etastring = "[ETA {0}:{1:2d}]".format(int(eta/60), int(eta%60))
+
+        print("[{0:3.2f}%]{1} Checking mapblock {2} ({3})".format(pct, etastring, i, absi), end = "     \r")
         unknowns = []
         for id in k.name_id_mappings:
             node = k.name_id_mappings[id]
             if node != "air":
                 if not node in nodes:
-                    print("Unknown node in {0} : {1}".format(i, node))
                     unknowns.append(node)
 
         if len(unknowns) > 0:
@@ -55,10 +63,10 @@ def removeUnknowns():
                     for z in range(16):
                         noderef = k.get_node(x + y * 16 + z * 16 * 16)
                         if noderef.get_name() in unknowns:
-                            print("Removed node in {0} : {1}".format(noderef.get_pos(), noderef.get_name()))
                             k.remove_node(x + y * 16 + z * 16 * 16)
 
-            print("Saving mapblock {0}".format(absi))
+            print("\n[{0:3.2f}%] {1} nodes removed".format(pct, len(unknowns)))
+            print("[{0:3.2f}%] Saving mapblock {1}".format(pct, absi))
             u.store(i, k.implode())
             u.write(i)
 
