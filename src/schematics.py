@@ -20,7 +20,7 @@ from io import BytesIO
 # Quick spec for ver4
 """
 u32 signature (= b"MTSM")
-u16 version?
+u16 version
 u16 size_x
 u16 size_y
 u16 size_z
@@ -109,9 +109,9 @@ class Schematic:
 		data.write(b"MTSM")
 		writeU16(data, self.version)
 
-		writeU8(data, self.size["x"])
-		writeU8(data, self.size["y"])
-		writeU8(data, self.size["z"])
+		writeU16(data, self.size["x"])
+		writeU16(data, self.size["y"])
+		writeU16(data, self.size["z"])
 
 		for u in range(self.size["y"]):
 			p = self.y_slice_probs.get(u) or 127

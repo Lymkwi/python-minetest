@@ -131,11 +131,27 @@ def writeU16(strm, val):
     strm.write(bytes(vals))
 
 def writeU32(strm, val):
-    vals = []
-    for _ in range(4):
-        k = val % 256
-        vals.insert(0, int(k))
-        val -= k
-        val /= 256
+	vals = []
+	for _ in range(4):
+		k = val % 256
+		vals.insert(0, int(k))
+		val -= k
+		val /= 256
 
-    strm.write(bytes(vals))
+	strm.write(bytes(vals))
+
+class Vector:
+	def add(self, pos1, pos2):
+		return Pos({"x": pos1.x + pos2.x, "y": pos1.y + pos2.y, "z": pos1.z + pos2.z})
+
+	def sub(self, pos1, pos2):
+		return Pos({"x": pos1.x - pos2.x, "y": pos1.y - pos2.y, "z": pos1.z - pos2.z})
+
+	def mult(self, pos, lmbd):
+		return Pos({"x": pos.x * lmbd, "y": pos.y * lmbd, "z": pos.z * lmbd})
+
+	def div(self, pos, lmbd):
+		return self.mult(self, pos, 1/lmbd)
+
+	def round(self, pos):
+		return Pos({"x": round(pos.x), "y": round(pos.y), "z": round(pos.z)})
