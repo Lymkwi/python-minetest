@@ -75,6 +75,8 @@ class Schematic:
 		self.version = readU16(data)
 		self.size = {"x": readU16(data), "y": readU16(data), "z": readU16(data)}
 
+		logger.debug("Read size : ({0}, {1}, {2})".format(self.size["x"], self.size["y"], self.size["z"]))
+
 		for i in range(self.size["y"]):
 			p = readU8(data)
 			if p < 127:
@@ -90,14 +92,18 @@ class Schematic:
 		bulk = BytesIO(zlib.decompress(data.read()))
 		nodecount = self.size["x"] * self.size["y"] * self.size["z"]
 		self.data = {}
+		logger.debug("Which makes {0} nodes to read".format(nodecount))
 		for i in range(nodecount):
 			self.data[i] = Node(self.nodes[readU16(bulk)])
+		logger.debug("Nodes read")
 
 		for i in range(nodecount):
 			self.data[i].set_param1(readU8(bulk))
+		logger.debug("Param1 read")
 
 		for i in range(nodecount):
 			self.data[i].set_param2(readU8(bulk))
+		logger.debug("Param2 read")
 
 		self.loaded = True
 

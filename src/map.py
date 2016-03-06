@@ -561,6 +561,7 @@ class MapInterface:
 				del self.mod_cache[self.mod_cache.index(blockID)]
 			else:
 				self.save_mapblock(blockID)
+			del self.mod_cache[self.mod_cache.index(blockID)]
 
 		self.interface.uncache(blockID)
 
@@ -637,6 +638,7 @@ class MapInterface:
 		while len(self.mod_cache) > 0:
 			logger.debug("{0} mapblocks left to save".format(len(self.mod_cache)))
 			self.save_mapblock(self.mod_cache[0])
+
 		self.mod_cache = []
 
 		self.interface.commit()
@@ -692,7 +694,7 @@ class MapInterface:
 							self.set_node(vpos, node)
 							break
 						except IgnoreContentReplacementError:
-							logger.debug("Init mapblock at {0}\n{1}".format(str(rpos), pctstr), end = '\r')
+							logger.debug("Init mapblock at {0}".format(str(rpos)))
 							self.init_mapblock(getMapBlockPos(determineMapBlock(v.add(pos, rpos))))
 							continue
 					logger.debug(pctstr)
