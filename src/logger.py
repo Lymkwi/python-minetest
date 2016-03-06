@@ -1,3 +1,4 @@
+#!/usr/bin/env python3
 # -*- encoding: UTF-8 -*-
 ##########################
 ## Logger for python-minetest

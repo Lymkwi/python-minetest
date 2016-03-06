@@ -1,4 +1,4 @@
-#!/usr/bin/env python3.4
+#!/usr/bin/env python3
 # -*- encoding: utf-8 -*-
 ############################
 ## Demo of Python-Minetest :
@@ -41,6 +41,9 @@ if __name__ == "__main__":
 		db.set_maxcachesize(40)
 		print("Reading schematic...")
 		schem = minetest.schematics.Schematic(schfile)
+		if not schem:
+			print("No schematic imported. Aborted.")
+
 		print("Importing schematic..")
 		db.import_schematic(pos_import, schem, stage_save=True)
 		print("Saving...")

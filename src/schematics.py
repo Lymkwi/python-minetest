@@ -8,6 +8,7 @@
 
 from nodes import Node
 from utils import readU16, readU8, readU32, writeU16, writeU8, writeU32
+from logger import logger
 
 import zlib
 from io import BytesIO
@@ -68,7 +69,7 @@ class Schematic:
 		try:
 			assert(data.read(4) == b"MTSM")
 		except AssertionError:
-			print("ERROR: {0} couldn't load schematic from data : invalid signature".format(self))
+			logger.error("{0} : Couldn't load schematic from data : invalid signature".format(self))
 			return
 
 		self.version = readU16(data)
@@ -144,7 +145,7 @@ class Schematic:
 		try:
 			ifile = open(filename, "rb")
 		except Exception as err:
-			print("ERROR: {0} couldn't open file {1} : {2}".format(self, filename, err))
+			logger.error("{0} : Couldn't open file {1} : {2}".format(self, filename, err))
 			return
 
 		self.load(ifile)
@@ -153,7 +154,7 @@ class Schematic:
 		try:
 			ofile = open(filename, "wb")
 		except Exception as err:
-			print("ERROR: {0} couldn't open file {1} : {2}".format(self, filename, err))
+			logger.error("{0} : Couldn't open file {1} : {2}".format(self, filename, err))
 			return
 
 		ofile.write(self.export().read())
