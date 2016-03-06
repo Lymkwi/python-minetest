@@ -7,6 +7,7 @@
 ##
 #
 
+import logger
 import utils
 import map
 import schematics
@@ -14,3 +15,6 @@ import inventory
 import errors
 import metadata
 import nodes
+
+
+__version__ = "00.00.01"

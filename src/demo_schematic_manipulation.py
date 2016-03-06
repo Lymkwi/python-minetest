@@ -11,9 +11,11 @@
 
 import minetest
 
-pos_import = minetest.utils.Pos({"x": -33, "y": 100, "z": 48})
+pos_import = minetest.utils.Pos({"x": 300, "y": 100, "z": 300})
 pos1_export = minetest.utils.Pos({"x": -10, "y": -10, "z": -10})
 pos2_export = minetest.utils.Pos({"x": 10, "y": 10, "z": 10})
+
+minetest.logger.init_logging(debug=True)
 
 if __name__ == "__main__":
 	import sys
@@ -36,8 +38,12 @@ if __name__ == "__main__":
 	db = minetest.map.MapInterface(dbfile)
 
 	if mode.lower() == "import":
+		db.set_maxcachesize(40)
+		print("Reading schematic...")
+		schem = minetest.schematics.Schematic(schfile)
 		print("Importing schematic..")
-		db.import_schematic(pos_import, minetest.schematics.Schematic(schfile))
+		db.import_schematic(pos_import, schem, stage_save=True)
+		print("Saving...")
 		db.save()
 		print("Done")
 

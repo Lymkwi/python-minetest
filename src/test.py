@@ -140,10 +140,26 @@ def testSchematics():
 	print("  -> Saving took {0}s".format(time.time() - s))
 	print(" --> Test successful")
 
+def testMapBlockInit():
+	# Open the db
+	db = minetest.map.MapInterface("./map.sqlite")
+
+	# Override
+	print("  -> Init mapblock at (0,0,0)")
+	db.init_mapblock(0, override = True)
+
+	print("  -> Saving..")
+	db.save()
+	db.unload_mapblock(0)
+
+	# Seek node at (0,0,0)
+	print("  -> Assertion about node at (0,0,0)")
+	assert(db.get_node(minetest.utils.Pos()).get_name() == "air")
+	print("  -> Assertion succeeded")
+	print(" --> Test successful")
 
 
-if __name__ == "__main__":
-
+def main():
 	print("=> MapBlockLoad Test")
 	s = time.time()
 	testMapBlockLoad()
@@ -172,4 +188,12 @@ if __name__ == "__main__":
 	print("=> schematic manipulation (WIP)")
 	s = time.time()
 	testSchematics()
+	print("  => Test took {0:.10f}s".format(time.time()-s))"""
+
+	print("=> MapBlock init")
+	s = time.time()
+	testMapBlockInit()
 	print("  => Test took {0:.10f}s".format(time.time()-s))
+
+if __name__ == "__main__":
+	main()

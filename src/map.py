@@ -10,13 +10,17 @@ import sqlite3 as _sql
 import zlib
 from io import BytesIO
 import math
+import logging
 
-from errors import MapError, IgnoreContentReplacementError, EmptyMapVesselError, UnknownMetadataTypeIDError, InvalidParamLengthError, EmptyMapBlockError, OutOfBordersCoordinates
+from errors import MapError, IgnoreContentReplacementError, EmptyMapVesselError, UnknownMetadataTypeIDError, InvalidParamLengthError, OutOfBordersCoordinates
 from utils import *
 from metadata import NodeMetaRef
 from inventory import getSerializedInventory, deserializeInventory, InvRef
 from nodes import NodeTimerRef, Node
 from schematics import Schematic
+from logger import logger
+
+logger.debug("Map Enabled")
 
 # Bitmask constants
 IS_UNDERGROUND = 1
@@ -39,9 +43,9 @@ class MapBlock:
 			self.explode(data)
 		else:
 			self.nodes = dict()
-			self.version = 0
+			self.version = 25
 			self.mapblocksize = 16 # Normally
-			self.bitmask = b"08"
+			self.bitmask = 12
 			self.content_width = 2
 			self.param_width = 2
 			self.node_meta = dict()
@@ -55,7 +59,11 @@ class MapBlock:
 			self.single_timer_data_length = 10 #u8
 			self.timer_counts = 0 #u16
 			self.node_timers = dict() #u16, s32, s32
-			self.loaded = False
+
+			for x in range(4096):
+				self.set_node(x, Node("air"))
+				self.name_id_mappings = self.create_name_id_mappings()
+				self.num_name_id_mappings = len(self.name_id_mappings)
 
 	def create_name_id_mappings(self):
 		names = []
@@ -158,9 +166,6 @@ class MapBlock:
 		return data.getvalue()
 
 	def check_pos(self, mapblockpos):
-		if not self.loaded:
-			raise EmptyMapBlockError
-
 		if mapblockpos < 0 or mapblockpos >= 4096:
 			raise OutOfBordersCoordinates
 
@@ -179,8 +184,6 @@ class MapBlock:
 
 		self.nodes[mapblockpos] = node
 
-		self.name_id_mappings = self.create_name_id_mappings()
-		self.num_name_id_mappings = len(self.name_id_mappings)
 		return True
 
 	def add_node(self, mapblockpos, node):
@@ -531,9 +534,6 @@ class MapVessel:
 		if self.is_empty():
 			raise EmptyMapVesselError()
 
-		if not self.cache.get(blockID):
-			return False, "notread"
-
 		self.cache[blockID] = mapblockData
 		return True
 
@@ -553,13 +553,13 @@ class MapInterface:
 
 	def unload_mapblock(self, blockID):
 		self.mapblocks[blockID] = None
-		del self.cache_history[self.cache_history.index(blockID)]
+		if blockID in self.cache_history:
+			del self.cache_history[self.cache_history.index(blockID)]
 		if blockID in self.mod_cache:
 			if not self.force_save_on_unload:
-				print("WARNING : Unloading unsaved mapblock at pos {0}!".format(blockID))
+				logger.warning("Unloading unsaved mapblock at pos {0}!".format(blockID))
 				del self.mod_cache[self.mod_cache.index(blockID)]
 			else:
-				print("WARNING : Saving unsaved mapblock at pos {0} before unloading it.".format(blockID))
 				self.save_mapblock(blockID)
 
 		self.interface.uncache(blockID)
@@ -589,7 +589,7 @@ class MapInterface:
 		if not self.mapblocks.get(blockID):
 			return False
 
-		#print("Saving block at pos {0} ({1})".format(blockID, posFromInt(blockID, 4096)))
+		logger.debug("Saving block at pos {0} ({1})".format(blockID, posFromInt(blockID, 4096)))
 		self.interface.store(blockID, self.mapblocks[blockID].implode())
 		self.interface.write(blockID)
 		del self.mod_cache[self.mod_cache.index(blockID)]
@@ -617,7 +617,7 @@ class MapInterface:
 		mapblock = determineMapBlock(pos)
 		mapblockpos = getMapBlockPos(mapblock)
 		if not self.check_for_pos(mapblockpos):
-			raise IgnoreContentReplacementError("Pos: " + pos)
+			raise IgnoreContentReplacementError("Pos: " + str(pos))
 
 		node.pos = pos
 		self.mod_flag(mapblockpos)
@@ -633,7 +633,9 @@ class MapInterface:
 		return self.mapblocks[mapblockpos].remove_node((pos.x % 16) + (pos.y % 16) * 16 + (pos.z % 16) * 16 * 16, node)
 
 	def save(self):
+		logger.debug("Saving..")
 		while len(self.mod_cache) > 0:
+			logger.debug("{0} mapblocks left to save".format(len(self.mod_cache)))
 			self.save_mapblock(self.mod_cache[0])
 		self.mod_cache = []
 
@@ -672,10 +674,39 @@ class MapInterface:
 
 		return sch
 
-	def import_schematic(self, pos, schematic):#, forceplace = True):
-		for x in range(schematic.size["x"]):
-			for y in range(schematic.size["y"]):
+	def import_schematic(self, pos, schematic, stage_save=False):
+		k = schematic.size["x"] * schematic.size["y"] * schematic.size["z"]
+		tenth = 0
+		for y in range(schematic.size["y"]):
+			for x in range(schematic.size["x"]):
 				for z in range(schematic.size["z"]):
 					v = Vector()
 					rpos = Pos({"x": x, "y": y, "z": z})
-					self.set_node(v.add(pos, rpos), schematic.get_node(rpos))
+					pct = (1 + z + (x * schematic.size["z"]) + (y * schematic.size["z"] * schematic.size["x"])) / k * 100
+					node = schematic.get_node(rpos)
+					vpos = v.add(pos, rpos)
+					pctstr = "[{0:3.5f}%] Placing nodes..".format(pct)
+
+					while True:
+						try:
+							self.set_node(vpos, node)
+							break
+						except IgnoreContentReplacementError:
+							logger.debug("Init mapblock at {0}\n{1}".format(str(rpos), pctstr), end = '\r')
+							self.init_mapblock(getMapBlockPos(determineMapBlock(v.add(pos, rpos))))
+							continue
+					logger.debug(pctstr)
+					if stage_save and int(pct/10) != tenth:
+						tenth = int(pct/10)
+						logger.debug("Saving partial import at {0:3.5f}%..".format(pct))
+						logger.debug("{0} mapblocks to save".format(len(self.mod_cache)))
+						self.save()
+
+	def init_mapblock(self, mapblockpos, override = False):
+		res = self.interface.load(mapblockpos)
+		if (not res) or override:
+			m = MapBlock(abspos = mapblockpos)
+			abspos = mapblockpos
+			self.interface.store(mapblockpos, m.implode())
+			self.interface.write(mapblockpos)
+			self.interface.load(mapblockpos)
