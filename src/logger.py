@@ -10,7 +10,7 @@ import logging
 def init_logging(debug=False):
 	logger = logging.getLogger()
 
-	formatter = logging.Formatter("%(asctime)s %(name)s:%(funcName)-25s:%(lineno)-4s %(levelname)-8s %(message)s")
+	formatter = logging.Formatter("%(asctime)s %(module)s:%(funcName)-25s:%(lineno)-4s %(levelname)-8s %(message)s")
 
 	strhandler = logging.StreamHandler()
 	strhandler.setLevel(logging.DEBUG)

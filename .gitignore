@@ -1,3 +1,4 @@
 __pycache__/
 *.sqlite
 *.mts
+env/

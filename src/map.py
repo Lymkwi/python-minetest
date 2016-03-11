@@ -62,8 +62,9 @@ class MapBlock:
 
 			for x in range(4096):
 				self.set_node(x, Node("air"))
-				self.name_id_mappings = self.create_name_id_mappings()
-				self.num_name_id_mappings = len(self.name_id_mappings)
+
+			self.name_id_mappings = self.create_name_id_mappings()
+			self.num_name_id_mappings = len(self.name_id_mappings)
 
 	def create_name_id_mappings(self):
 		names = []
