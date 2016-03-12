@@ -45,7 +45,11 @@ if __name__ == "__main__":
 			print("No schematic imported. Aborted.")
 
 		print("Importing schematic..")
-		db.import_schematic(pos_import, schem, stage_save=True)
+		try:
+			db.import_schematic(pos_import, schem, stage_save=0)
+		except KeyboardInterrupt:
+			pass
+
 		print("Saving...")
 		db.save()
 		print("Done")

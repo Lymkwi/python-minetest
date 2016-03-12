@@ -20,7 +20,7 @@ from nodes import NodeTimerRef, Node
 from schematics import Schematic
 from logger import logger
 
-logger.debug("Map Enabled")
+logger.debug("Map Loaded")
 
 # Bitmask constants
 IS_UNDERGROUND = 1
@@ -39,6 +39,7 @@ class MapBlock:
 	def __init__(self, data = None, abspos = 0):
 		self.abspos = abspos
 		self.mapblockpos = posFromInt(self.abspos, 4096)
+		logger.debug("Map object initiated at {0}".format(self.mapblockpos))
 		if data:
 			self.explode(data)
 		else:
@@ -536,6 +537,7 @@ class MapVessel:
 			raise EmptyMapVesselError()
 
 		self.cache[blockID] = mapblockData
+		logger.debug("Mapblock {0} stored".format(blockID))
 		return True
 
 class MapInterface:
@@ -571,6 +573,7 @@ class MapInterface:
 			raise TypeError("Invalid type for size: {0}".format(type(size)))
 
 		self.max_cache_size = size
+		logger.debug("MapVessel's maximum cache size set to {0}".format(size))
 		self.check_cache()
 
 	def check_cache(self):
@@ -583,6 +586,7 @@ class MapInterface:
 
 	def load_mapblock(self, blockID):
 		self.mapblocks[blockID] = self.interface.load(blockID)
+		logger.debug("Loaded mapblock at {id}".format(id=blockID))
 		if not blockID in self.cache_history:
 			self.cache_history.append(blockID)
 			self.check_cache()
@@ -640,8 +644,6 @@ class MapInterface:
 			logger.debug("{0} mapblocks left to save".format(len(self.mod_cache)))
 			self.save_mapblock(self.mod_cache[0])
 
-		self.mod_cache = []
-
 		self.interface.commit()
 
 	def get_meta(self, pos):
@@ -677,7 +679,7 @@ class MapInterface:
 
 		return sch
 
-	def import_schematic(self, pos, schematic, stage_save=False):
+	def import_schematic(self, pos, schematic, stage_save=0):
 		k = schematic.size["x"] * schematic.size["y"] * schematic.size["z"]
 		tenth = 0
 		for y in range(schematic.size["y"]):
@@ -695,15 +697,16 @@ class MapInterface:
 							self.set_node(vpos, node)
 							break
 						except IgnoreContentReplacementError:
-							logger.debug("Init mapblock at {0}".format(str(rpos)))
 							self.init_mapblock(getMapBlockPos(determineMapBlock(v.add(pos, rpos))))
 							continue
 					logger.debug(pctstr)
-					if stage_save and int(pct/10) != tenth:
-						tenth = int(pct/10)
+					if stage_save and int(pct/stage_save) != tenth:
+						tenth = int(pct/stage_save)
 						logger.debug("Saving partial import at {0:3.5f}%..".format(pct))
 						logger.debug("{0} mapblocks to save".format(len(self.mod_cache)))
 						self.save()
+						logger.debug("Committing on database..")
+						self.interface.commit()
 
 	def init_mapblock(self, mapblockpos, override = False):
 		res = self.interface.load(mapblockpos)
@@ -713,3 +716,5 @@ class MapInterface:
 			self.interface.store(mapblockpos, m.implode())
 			self.interface.write(mapblockpos)
 			self.interface.load(mapblockpos)
+
+		logger.debug("Init mapblock at {0}".format(str(mapblockpos)))
