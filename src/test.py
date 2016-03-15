@@ -7,6 +7,7 @@
 import minetest
 import random
 import time
+import os
 
 from io import BytesIO
 from schematics import Schematic
@@ -159,8 +160,27 @@ def testMapBlockInit():
 	print(" --> Test successful")
 
 
+def testConfiguration():
+	# Open the file
+	dir = os.environ["HOME"] + "/.minetest/worlds/world"
+	print("-> Trying to open {0}".format(dir))
+	conf = minetest.config.Configuration.open_world(dir)
+	if not conf:
+		print("=> No conf found")
+		return
+
+	print("-> The world's backend is {0}".format(conf["backend"]))
+	print("-> There are {0} configuration keys in the file".format(len(conf)))
+	if "load_mod_mesecon" in conf and conf["load_mod_mesecon"]:
+		print("-> You have mesecon installed and set to be loaded")
+	else:
+		print("-> You do not have mesecon installed, or it is disabled")
+
+
 def main():
-	print("=> MapBlockLoad Test")
+	print("=> Configuration Test")
+	testConfiguration()
+"""	print("=> MapBlockLoad Test")
 	s = time.time()
 	testMapBlockLoad()
 	print("  => Test took {0:.10f}s".format(time.time()-s))
@@ -188,12 +208,12 @@ def main():
 	print("=> schematic manipulation (WIP)")
 	s = time.time()
 	testSchematics()
-	print("  => Test took {0:.10f}s".format(time.time()-s))"""
+	print("  => Test took {0:.10f}s".format(time.time()-s))
 
 	print("=> MapBlock init")
 	s = time.time()
 	testMapBlockInit()
-	print("  => Test took {0:.10f}s".format(time.time()-s))
+	print("  => Test took {0:.10f}s".format(time.time()-s))"""
 
 if __name__ == "__main__":
 	main()

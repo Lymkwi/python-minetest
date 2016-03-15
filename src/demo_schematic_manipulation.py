@@ -38,7 +38,7 @@ if __name__ == "__main__":
 	db = minetest.map.MapInterface(dbfile)
 
 	if mode.lower() == "import":
-		db.set_maxcachesize(40)
+		db.set_maxcachesize(100)
 		print("Reading schematic...")
 		schem = minetest.schematics.Schematic(schfile)
 		if not schem:
@@ -46,7 +46,7 @@ if __name__ == "__main__":
 
 		print("Importing schematic..")
 		try:
-			db.import_schematic(pos_import, schem, stage_save=0)
+			db.import_schematic(pos_import, schem, stage_save=5)
 		except KeyboardInterrupt:
 			pass
 

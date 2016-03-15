@@ -15,6 +15,7 @@ import inventory
 import errors
 import metadata
 import nodes
+import configuration as config
 
 
-__version__ = "00.00.01"
+__version__ = "00.00.02"
