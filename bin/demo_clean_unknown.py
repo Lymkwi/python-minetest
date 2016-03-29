@@ -9,7 +9,7 @@
 ##
 #
 
-import minetest
+import libminetest
 import time
 
 def removeUnknowns():
@@ -32,7 +32,7 @@ def removeUnknowns():
     nodes = [node[:-1] for node in knodes.readlines()] # Remove the \n
     print("{0} nodes known".format(len(nodes)))
 
-    u = minetest.map.MapVessel(sys.argv[1])
+    u = libminetest.map.MapVessel(sys.argv[1])
     ids = u.get_all_mapblock_ids()
     nids = len(ids)
     print("{0} mapblocks to inspect".format(nids))
@@ -43,7 +43,7 @@ def removeUnknowns():
     for index in range(len(ids)):
         i = ids[index]
         k = u.load(i)
-        absi = minetest.utils.posFromInt(i, 4096)
+        absi = libminetest.utils.posFromInt(i, 4096)
         pct = index/nids * 100
         if index % 10 == 0:
             eta = ((time.time() - s) / (index+1)) * (nids - index)

@@ -8,8 +8,8 @@
 
 from io import StringIO
 
-from errors import InventoryDeserializationError
-from utils import readU8
+from .errors import InventoryDeserializationError
+from .utils import readU8
 
 def getSerializedInventory(strm):
     # serialized inventory

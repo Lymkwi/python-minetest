@@ -6,7 +6,7 @@
 ##
 #
 
-from utils import Pos
+from .utils import Pos
 
 class NodeTimerRef:
     def __init__(self, pos = Pos(), timeout = 0.0, elapsed = 0.0):

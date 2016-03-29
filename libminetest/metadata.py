@@ -6,8 +6,8 @@
 ##
 #
 
-from inventory import InvRef
-from utils import Pos
+from .inventory import InvRef
+from .utils import Pos
 
 
 class NodeMetaRef:

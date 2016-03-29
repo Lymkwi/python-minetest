@@ -12,13 +12,13 @@ from io import BytesIO
 import math
 import logging
 
-from errors import MapError, IgnoreContentReplacementError, EmptyMapVesselError, UnknownMetadataTypeIDError, InvalidParamLengthError, OutOfBordersCoordinates
-from utils import *
-from metadata import NodeMetaRef
-from inventory import getSerializedInventory, deserializeInventory, InvRef
-from nodes import NodeTimerRef, Node
-from schematics import Schematic
-from logger import logger
+from .errors import MapError, IgnoreContentReplacementError, EmptyMapVesselError, UnknownMetadataTypeIDError, InvalidParamLengthError, OutOfBordersCoordinates
+from .utils import *
+from .metadata import NodeMetaRef
+from .inventory import getSerializedInventory, deserializeInventory, InvRef
+from .nodes import NodeTimerRef, Node
+from .schematics import Schematic
+from .logger import logger
 
 logger.debug("Map Loaded")
 
@@ -531,6 +531,16 @@ class MapVessel:
 				return res, code
 
 		return MapBlock(self.cache[blockID], abspos = blockID)
+
+	def remove(self, blockID):
+		if self.is_empty():
+			raise EmptyMapVesselError()
+
+		try:
+			self.cur.execute("DELETE FROM `blocks` WHERE `pos` = ?", [blockID])
+		except _sql.OperationalError as err:
+			raise MapError(err)
+
 
 	def store(self, blockID, mapblockData):
 		if self.is_empty():

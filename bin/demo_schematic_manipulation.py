@@ -9,13 +9,13 @@
 ##
 #
 
-import minetest
+import libminetest
 
-pos_import = minetest.utils.Pos({"x": 300, "y": 100, "z": 300})
-pos1_export = minetest.utils.Pos({"x": -10, "y": -10, "z": -10})
-pos2_export = minetest.utils.Pos({"x": 10, "y": 10, "z": 10})
+pos_import = libminetest.utils.Pos({"x": 300, "y": 100, "z": 300})
+pos1_export = libminetest.utils.Pos({"x": -10, "y": -10, "z": -10})
+pos2_export = libminetest.utils.Pos({"x": 10, "y": 10, "z": 10})
 
-minetest.logger.init_logging(debug=True)
+libminetest.logger.init_logging(debug=True)
 
 if __name__ == "__main__":
 	import sys
@@ -35,12 +35,12 @@ if __name__ == "__main__":
 		print("Couldn't open db file {0} : {1}".format(dbfile, err))
 		sys.exit(0)
 
-	db = minetest.map.MapInterface(dbfile)
+	db = libminetest.map.MapInterface(dbfile)
 
 	if mode.lower() == "import":
 		db.set_maxcachesize(100)
 		print("Reading schematic...")
-		schem = minetest.schematics.Schematic(schfile)
+		schem = libminetest.schematics.Schematic(schfile)
 		if not schem:
 			print("No schematic imported. Aborted.")
 

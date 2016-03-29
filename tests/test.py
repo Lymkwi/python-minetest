@@ -4,16 +4,20 @@
 ## Tests ran for Python-MT
 ##
 
-import minetest
+import libminetest
+import libminetest.map
+import libminetest.config
+from libminetest.schematics import Schematic
+
 import random
 import time
 import os
+import sys
 
 from io import BytesIO
-from schematics import Schematic
 
-def testMapBlockLoad():
-    file = minetest.map.MapVessel("./map.sqlite")
+def testMapBlockLoad(map):
+    file = libminetest.map.MapVessel(map)
     for i in range(-4096, 4096):
         res, code = file.read(i)
         if not res:
@@ -26,25 +30,25 @@ def testMapBlockLoad():
     print(" --> Test successful")
 
 def testEndians():
-    assert(minetest.utils.readS8(BytesIO(b"\xf8")) == -8)
+    assert(libminetest.utils.readS8(BytesIO(b"\xf8")) == -8)
     print("  -> readS8: OK")
-    assert(minetest.utils.readS16(BytesIO(b"\x9f\xff")) == -24577)
+    assert(libminetest.utils.readS16(BytesIO(b"\x9f\xff")) == -24577)
     print("  -> readS16: OK")
-    assert(minetest.utils.readS32(BytesIO(b"\xf0\x00\x00\x00")) == -268435456)
+    assert(libminetest.utils.readS32(BytesIO(b"\xf0\x00\x00\x00")) == -268435456)
     print("  -> readS32: OK")
 
-    assert(minetest.utils.readU8(BytesIO(b"\xf8")) == 248)
+    assert(libminetest.utils.readU8(BytesIO(b"\xf8")) == 248)
     print("  -> readU8: OK")
-    assert(minetest.utils.readU16(BytesIO(b"\x9f\xff")) == 40959)
+    assert(libminetest.utils.readU16(BytesIO(b"\x9f\xff")) == 40959)
     print("  -> readU16: OK")
-    assert(minetest.utils.readU32(BytesIO(b"\xf0\x00\x00\x00")) == 4026531840)
+    assert(libminetest.utils.readU32(BytesIO(b"\xf0\x00\x00\x00")) == 4026531840)
     print("  -> readU32: OK")
 
     print(" --> Test successful")
 
 
-def testGetNode():
-    db = minetest.map.MapInterface("./map.sqlite")
+def testGetNode(map):
+    db = libminetest.map.MapInterface(map)
 
     u = random.randint(500, 2000)
     k = random.randint(40,400)
@@ -54,7 +58,7 @@ def testGetNode():
 
     s = time.time()
     for i in range(u):
-        pos = minetest.utils.Pos({'x': random.randint(-300, 300), 'y': random.randint(-300, 300), 'z': random.randint(-300, 300)})
+        pos = libminetest.utils.Pos({'x': random.randint(-300, 300), 'y': random.randint(-300, 300), 'z': random.randint(-300, 300)})
         assert(db.get_node(pos).get_name() != "")
 
         if len(db.interface.cache) == db.get_maxcachesize():
@@ -69,15 +73,15 @@ def testGetNode():
     print("  -> ~{0:.4f}ms per call to get_node".format((time.time()-s)*1000/u), end = "     \n")
     print(" --> Test successful")
 
-def testSetNode():
-    db = minetest.map.MapInterface("./map.sqlite")
+def testSetNode(map):
+    db = libminetest.map.MapInterface(map)
     f = open("./dump.bin", "w")
-    dummy = minetest.nodes.Node("default:nyancat")
+    dummy = libminetest.nodes.Node("default:nyancat")
     s = time.time()
     u = 100
 
     for y in range(1, u+1):
-        db.set_node(minetest.utils.Pos({'x': 0, 'y': y, 'z': 0}), dummy)
+        db.set_node(libminetest.utils.Pos({'x': 0, 'y': y, 'z': 0}), dummy)
 
     print("  -> {0} nyan cats placed".format(u))
     print("  -> {0}ms per call to set_node".format((time.time()-s)/u*1000))
@@ -86,9 +90,9 @@ def testSetNode():
     print("  -> database saving took {0}s".format(time.time()-s))
     print(" --> Test successful")
 
-def invManip():
-    db = minetest.map.MapInterface("./map.sqlite")
-    pos = minetest.utils.Pos({'x': 0, 'y': 0, 'z': 0})
+def invManip(map):
+    db = libminetest.map.MapInterface(map)
+    pos = libminetest.utils.Pos({'x': 0, 'y': 0, 'z': 0})
     chest = db.get_meta(pos)
     inv = chest.get_inventory()
 
@@ -102,9 +106,9 @@ def invManip():
     print("  ~~> Size of 'main' list is {0} slots".format(inv.get_size("main")))
     print(" --> Test successful")
 
-def testSchematics():
+def testSchematics(map):
     # Import from file
-    schem = minetest.schematics.Schematic(os.environ["HOME"] + "/.minetest/games/minetest_game/mods/default/schematics/apple_tree_from_sapling.mts")
+    schem = libminetest.schematics.Schematic(os.environ["HOME"] + "/.minetest/games/minetest_game/mods/default/schematics/apple_tree_from_sapling.mts")
     print("  -> Schematic : {0}".format(schem))
 
     # Export to BytesStream & file
@@ -116,9 +120,9 @@ def testSchematics():
     assert(open("test.mts"))
 
     # Map export
-    db = minetest.map.MapInterface("./map.sqlite")
+    db = libminetest.map.MapInterface(map)
     s = time.time()
-    schem = db.export_schematic(minetest.utils.Pos(), minetest.utils.Pos({"x": -100, "y": 10, "z": 100}))
+    schem = db.export_schematic(libminetest.utils.Pos(), libminetest.utils.Pos({"x": -100, "y": 10, "z": 100}))
     s = time.time() - s
     assert(schem.export().read())
     print("  -> Schematic exportation : OK")
@@ -126,13 +130,13 @@ def testSchematics():
     schem.export_to_file("test.mts")
 
     # Get node
-    node = schem.get_node(minetest.utils.Pos({"x": 0, "y": 0, "z": 0})).get_name()
+    node = schem.get_node(libminetest.utils.Pos({"x": 0, "y": 0, "z": 0})).get_name()
     assert(node != "")
     print("  -> Node in (0,0,0) is {0}".format(node))
 
     # Import
     s = time.time()
-    db.import_schematic(minetest.utils.Pos({"x": 100, "y": 100, "z": 100}), schem)
+    db.import_schematic(libminetest.utils.Pos({"x": 100, "y": 100, "z": 100}), schem)
     print("  -> Importation in map took {0}s".format(time.time() - s))
 
     print("  -> {0} mapblock(s) to be saved".format(len(db.mod_cache)))
@@ -141,9 +145,9 @@ def testSchematics():
     print("  -> Saving took {0}s".format(time.time() - s))
     print(" --> Test successful")
 
-def testMapBlockInit():
+def testMapBlockInit(map):
     # Open the db
-    db = minetest.map.MapInterface("./map.sqlite")
+    db = libminetest.map.MapInterface(map)
 
     # Override
     print("  -> Init mapblock at (0,0,0)")
@@ -155,7 +159,7 @@ def testMapBlockInit():
 
     # Seek node at (0,0,0)
     print("  -> Assertion about node at (0,0,0)")
-    assert(db.get_node(minetest.utils.Pos()).get_name() == "air")
+    assert(db.get_node(libminetest.utils.Pos()).get_name() == "air")
     print("  -> Assertion succeeded")
     print(" --> Test successful")
 
@@ -165,7 +169,7 @@ def testConfiguration():
     dir = os.environ["HOME"] + "/.minetest/worlds/world"
     print("  -> Testing world configuration first")
     print("  ~~> Trying to open {0}(/world.mt)".format(dir))
-    conf = minetest.config.Configuration.open_world(dir)
+    conf = libminetest.config.Configuration.open_world(dir)
     if not conf:
         print("=> No conf found")
         return
@@ -177,8 +181,8 @@ def testConfiguration():
     else:
         print("  ~~> You do not have mesecon installed, or it is disabled")
 
-    print("  -> Testing minetest.conf second")
-    conf = minetest.config.Configuration(os.environ["HOME"] + "/.minetest/minetest.conf")
+    print("  -> Testing libminetest.conf second")
+    conf = libminetest.config.Configuration(os.environ["HOME"] + "/.minetest/minetest.conf")
     if not conf:
         print("  ~~> File not opened")
         return
@@ -197,7 +201,7 @@ def testConfiguration():
 
     conf = None
     print("  ~~> Object thrown away")
-    newconf = minetest.config.Configuration(os.environ["HOME"] + "/.minetest/minetest.conf")
+    newconf = libminetest.config.Configuration(os.environ["HOME"] + "/.minetest/minetest.conf")
     print("  ~~> Checking fixed_map_seed...")
     print("  ~~> fixed_map_seed = {0}".format(newconf["fixed_map_seed"]))
     assert(newconf["fixed_map_seed"] == fixed_map_seed)
@@ -205,22 +209,22 @@ def testConfiguration():
     newconf = None
 
     print("  ~~> Checking item removal")
-    conf = minetest.config.Configuration(os.environ["HOME"] + "/.minetest/minetest.conf")
+    conf = libminetest.config.Configuration(os.environ["HOME"] + "/.minetest/minetest.conf")
     name = conf["name"]
     del conf["name"]
     conf.write()
-    conf = minetest.config.Configuration(os.environ["HOME"] + "/.minetest/minetest.conf")
+    conf = libminetest.config.Configuration(os.environ["HOME"] + "/.minetest/minetest.conf")
     assert(not conf["name"])
     print("  ~~> Item 'name' removed correctly")
     conf = None
 
     print("  ~~> Checking item insertion")
-    conf = minetest.config.Configuration(os.environ["HOME"] + "/.minetest/minetest.conf")
+    conf = libminetest.config.Configuration(os.environ["HOME"] + "/.minetest/minetest.conf")
     conf["name"] = name
     conf.write()
     conf = None
     print("  ~~> Name inserted back")
-    conf = minetest.config.Configuration(os.environ["HOME"] + "/.minetest/minetest.conf")
+    conf = libminetest.config.Configuration(os.environ["HOME"] + "/.minetest/minetest.conf")
     print("  ~~> Name is '{}'".format(conf["name"]))
     assert(conf["name"] == name)
     print("  ~~> Assertion passed")
@@ -229,13 +233,13 @@ def testConfiguration():
     print(" --> Test successful")
 
 
-def main():
+def main(map):
     print("=> Tests will begin now")
     time.sleep(3)
 
     print("=> MapBlockLoad Test")
     s = time.time()
-    testMapBlockLoad()
+    testMapBlockLoad(map)
     print("  => Test took {0:.10f}s".format(time.time()-s))
 
     print("=> Signed Endians")
@@ -245,27 +249,27 @@ def main():
 
     print("=> get_node Test")
     s = time.time()
-    testGetNode()
+    testGetNode(map)
     print("  => Test took {0:.10f}s".format(time.time()-s))
 
     print("=> set_node")
     s = time.time()
-    testSetNode()
+    testSetNode(map)
     print("  => Test took {0:.10f}s".format(time.time()-s))
 
     print("=> inventory manipulation (WIP)")
     s = time.time()
-    invManip()
+    invManip(map)
     print("  => Test took {0:.10f}s".format(time.time()-s))
 
     print("=> schematic manipulation")
     s = time.time()
-    testSchematics()
+    testSchematics(map)
     print("  => Test took {0:.10f}s".format(time.time()-s))
 
     print("=> MapBlock init")
     s = time.time()
-    testMapBlockInit()
+    testMapBlockInit(map)
     print("  => Test took {0:.10f}s".format(time.time()-s))
 
     print("=> Configuration Test (WIP)")
@@ -275,4 +279,7 @@ def main():
 
 
 if __name__ == "__main__":
-    main()
+    if not len(sys.argv) >= 2:
+        print("Please give the path to a map file")
+    else:
+        main(sys.argv[1])

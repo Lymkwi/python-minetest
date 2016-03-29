@@ -6,9 +6,9 @@
 ##
 #
 
-from nodes import Node
-from utils import readU16, readU8, readU32, writeU16, writeU8, writeU32
-from logger import logger
+from .nodes import Node
+from .utils import readU16, readU8, readU32, writeU16, writeU8, writeU32
+from .logger import logger
 
 import zlib
 from io import BytesIO
