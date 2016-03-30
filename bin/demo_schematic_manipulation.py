@@ -10,6 +10,10 @@
 #
 
 import libminetest
+import libminetest.utils
+import libminetest.logger
+import libminetest.map
+import libminetest.schematics
 
 pos_import = libminetest.utils.Pos({"x": 300, "y": 100, "z": 300})
 pos1_export = libminetest.utils.Pos({"x": -10, "y": -10, "z": -10})

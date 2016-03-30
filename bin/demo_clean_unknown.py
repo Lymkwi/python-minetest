@@ -9,7 +9,8 @@
 ##
 #
 
-import libminetest
+import libminetest.map
+import libminetest.utils
 import time
 
 def removeUnknowns():
