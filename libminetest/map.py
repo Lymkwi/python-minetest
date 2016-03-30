@@ -39,7 +39,7 @@ class MapBlock:
 	def __init__(self, data = None, abspos = 0):
 		self.abspos = abspos
 		self.mapblockpos = posFromInt(self.abspos, 4096)
-		logger.debug("Map object initiated at {0}".format(self.mapblockpos))
+		logger.debug("MapBlock object initiated at {0}".format(self.mapblockpos))
 		if data:
 			self.explode(data)
 		else:
@@ -565,18 +565,24 @@ class MapInterface:
 			self.mod_cache.append(mapblockpos)
 
 	def unload_mapblock(self, blockID):
-		self.mapblocks[blockID] = None
+		logger.debug("Unloading mapblock @ {0}".format(blockID))
 		if blockID in self.cache_history:
 			del self.cache_history[self.cache_history.index(blockID)]
+		else:
+			logger.debug("Block not in cache history")
+
 		if blockID in self.mod_cache:
 			if not self.force_save_on_unload:
 				logger.warning("Unloading unsaved mapblock at pos {0}!".format(blockID))
 				del self.mod_cache[self.mod_cache.index(blockID)]
 			else:
+				logger.debug("Unloading and saving mapblock at pos {0}".format(blockID))
 				self.save_mapblock(blockID)
-			del self.mod_cache[self.mod_cache.index(blockID)]
+		else:
+			logger.debug("Block is not cached for modification")
 
 		self.interface.uncache(blockID)
+		self.mapblocks[blockID] = None
 
 	def set_maxcachesize(self, size):
 		if type(size) != type(0):
@@ -605,7 +611,7 @@ class MapInterface:
 		if not self.mapblocks.get(blockID):
 			return False
 
-		logger.debug("Saving block at pos {0} ({1})".format(blockID, posFromInt(blockID, 4096)))
+		logger.debug("Saving block at pos {0} {1}".format(blockID, posFromInt(blockID, 4096)))
 		self.interface.store(blockID, self.mapblocks[blockID].implode())
 		self.interface.write(blockID)
 		del self.mod_cache[self.mod_cache.index(blockID)]
@@ -637,6 +643,7 @@ class MapInterface:
 
 		node.pos = pos
 		self.mod_flag(mapblockpos)
+		logger.debug("Placing node {node} at pos {pos}".format(node=node, pos=pos))
 
 		return self.mapblocks[mapblockpos].set_node((pos.x % 16) + (pos.y % 16) * 16 + (pos.z % 16) * 16 * 16, node)
 
