@@ -565,11 +565,10 @@ class MapInterface:
 			self.mod_cache.append(mapblockpos)
 
 	def unload_mapblock(self, blockID):
-		logger.debug("Unloading mapblock @ {0}".format(blockID))
 		if blockID in self.cache_history:
 			del self.cache_history[self.cache_history.index(blockID)]
 		else:
-			logger.debug("Block not in cache history")
+			logger.debug("Block {} not in cache history".format(blockID))
 
 		if blockID in self.mod_cache:
 			if not self.force_save_on_unload:
@@ -579,7 +578,7 @@ class MapInterface:
 				logger.debug("Unloading and saving mapblock at pos {0}".format(blockID))
 				self.save_mapblock(blockID)
 		else:
-			logger.debug("Block is not cached for modification")
+			logger.debug("Block {} is not cached for modification".format(blockID))
 
 		self.interface.uncache(blockID)
 		self.mapblocks[blockID] = None
@@ -643,7 +642,6 @@ class MapInterface:
 
 		node.pos = pos
 		self.mod_flag(mapblockpos)
-		logger.debug("Placing node {node} at pos {pos}".format(node=node, pos=pos))
 
 		return self.mapblocks[mapblockpos].set_node((pos.x % 16) + (pos.y % 16) * 16 + (pos.z % 16) * 16 * 16, node)
 

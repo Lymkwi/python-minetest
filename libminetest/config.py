@@ -10,7 +10,15 @@ import os
 #from errors import ConfigurationFormatError
 
 class Configuration:
+    """Object handling the manipulation of .conf (key=value) configuration files, for example, minetest.conf"""
     def __init__(self, file):
+        """
+        Constructor for Configuration object
+
+	Arguments :
+	 - file, mandatory, is the path to the configuration file
+	"""
+
         self.data = dict()
         self.lines = []
         self.read(file)
@@ -33,6 +41,16 @@ class Configuration:
 
 
     def read(self, file=None):
+        """
+	Read and load a configuration file
+
+	Arguments :
+	 - file, keyword, defaults to None, is the path of the file to open.
+           The value of self.file is used if nothing is provided
+
+	Returns : True is succeeded, None if failed
+	"""
+
         try:
             buffer = open(file or self.file)
         except Exception:
@@ -69,7 +87,20 @@ class Configuration:
             self.data[k[0].strip()] = data
             self.lines.append((2, k[0].strip()))
 
+        return True
+
     def write(self, file=None):
+        """
+	Write the content of the Configuration object to a file
+
+	Arguments :
+	 - file, keyword, defaults to None, is the path to the file to write it.
+	   The file will be created or overwritten. The value of self.file will
+           be used if nothing is provided.
+
+	Returns : True if succeeded, None if failed
+	"""
+
         try:
             f = open(file or self.file, "w")
         except Exception as err:
@@ -109,6 +140,15 @@ class Configuration:
 
     @classmethod
     def open_world(cls, dir):
+        """
+        Class method to get a Configuration object by giving the path to a world directory
+
+	Arguments :
+	 - dir, mandatory, path to the world's directory which contains a world.mt configuration file
+
+	Returns : libminetest.config.Configuration or None if failed
+	"""
+
         try:
             open(dir + "/world.mt")
         except Exception as err:
