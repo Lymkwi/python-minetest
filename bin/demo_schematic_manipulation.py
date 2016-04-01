@@ -65,4 +65,4 @@ if __name__ == "__main__":
 
 	else:
 		print("Unknown mode {0}".format(mode))
-		sys.exit(9)
+		sys.exit(0)

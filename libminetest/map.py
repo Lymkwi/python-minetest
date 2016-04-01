@@ -550,6 +550,20 @@ class MapVessel:
 		logger.debug("Mapblock {0} stored".format(blockID))
 		return True
 
+	def empty_map(self):
+		"""
+                Delete the entire map's mapblocks. Also empties the object's cache
+		Note : Removal of mapblocks in the database after the last commit is reversible until the next call to commit(). Cache vacuuming is irreversible
+		"""
+
+		logger.warning("WARNING: Emptying the entire map of its mapblocks")
+		try:
+			self.cur.execute("DELETE from `blocks` WHERE `pos`")
+		except _sql.OperationalError as err:
+			raise MapError("Error while removing all mapblock : {0}".format(err))
+
+		self.cache = dict()
+
 class MapInterface:
 	def __init__(self, datafile, backend = "sqlite3"):
 		self.datafile = datafile
@@ -567,8 +581,6 @@ class MapInterface:
 	def unload_mapblock(self, blockID):
 		if blockID in self.cache_history:
 			del self.cache_history[self.cache_history.index(blockID)]
-		else:
-			logger.debug("Block {} not in cache history".format(blockID))
 
 		if blockID in self.mod_cache:
 			if not self.force_save_on_unload:
@@ -577,8 +589,6 @@ class MapInterface:
 			else:
 				logger.debug("Unloading and saving mapblock at pos {0}".format(blockID))
 				self.save_mapblock(blockID)
-		else:
-			logger.debug("Block {} is not cached for modification".format(blockID))
 
 		self.interface.uncache(blockID)
 		self.mapblocks[blockID] = None
