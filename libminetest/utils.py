@@ -7,6 +7,7 @@
 #
 
 from io import BytesIO
+from math import floor
 
 def posFromInt(pos, blocksize):
     posx, posy = 0, 0
@@ -19,14 +20,7 @@ def posFromInt(pos, blocksize):
     pos -= posy
     pos  = int(pos/blocksize)
 
-    return Pos({'x': posx, 'y': posy, 'z': pos})
-
-def intFromPos(pos, blocksize):
-    posint =  0
-    posint += pos.x
-    posint += pos.y * blocksize
-    posint += pos.z * blocksize * blocksize
-    return posint
+    return Pos(posx, posy, pos)
 
 def int64(u):
     while u >= 2**63:
@@ -38,6 +32,14 @@ def int64(u):
 def getMapBlockPos(pos):
     return pos.z * 4096 * 4096 + pos.y * 4096 + pos.x
 
+
+def determineMapBlock(pos):
+	posx = floor(pos.x / 16)
+	posy = floor(pos.y / 16)
+	posz = floor(pos.z / 16)
+
+	return Pos(posx, posy, posz)
+
 def getIntegerAsBlock(i):
     x = unsignedToSigned(i % 4096, 2048)
     i = int((i - x) / 4096)
@@ -45,7 +47,7 @@ def getIntegerAsBlock(i):
     i = int((i - y) / 4096)
     z = unsignedToSigned(i % 4096, 2048)
     i = int((i - z) / 4096)
-    return Pos({"x": x, "y": y, "z": z})
+    return Pos(x, y, z)
 
 def unsignedToSigned(i, max_positive):
     if i < max_positive:
@@ -54,11 +56,10 @@ def unsignedToSigned(i, max_positive):
         return i - 2*max_positive
 
 class Pos:
-    def __init__(self, posdict = {"x": 0, "y": 0, "z": 0}):
-        self.dict = posdict
-        self.x = posdict.get("x") or 0
-        self.y = posdict.get("y") or 0
-        self.z = posdict.get("z") or 0
+    def __init__(self, x, y, z):
+        self.x = x
+        self.y = y
+        self.z = z
 
     def __str__(self):
         return "({0}, {1}, {2})".format(self.x, self.y, self.z)
@@ -70,7 +71,7 @@ class Pos:
         return self.x == other.x and self.y == other.y and self.z == other.z
 
     def getAsInt(self, max_val = 16):
-        return int64(self.z * max_val * max_val + self.y * max_val + self.x)
+        return int64((self.z % max_val) * max_val * max_val + (self.y % max_val) * max_val + (self.x % max_val))
 
     def getAsTuple(self):
         return (self.x, self.y, self.z)
@@ -80,10 +81,9 @@ class Pos:
             return False
 
         self.x, self.y, self.z = tup[0], tup[1], tup[2]
-        self.dict = {'x': self.x, 'y': self.y, 'z': self.z}
         return self
 
-# Thanks to @gravgun/elementW for those
+# Thanks to @gravgun/ElementW for those.
 # Big-endian!!!
 def readU8(strm):
     return (ord(strm.read(1)))
@@ -142,16 +142,16 @@ def writeU32(strm, val):
 
 class Vector:
 	def add(self, pos1, pos2):
-		return Pos({"x": pos1.x + pos2.x, "y": pos1.y + pos2.y, "z": pos1.z + pos2.z})
+		return Pos(pos1.x + pos2.x, pos1.y + pos2.y, pos1.z + pos2.z)
 
 	def sub(self, pos1, pos2):
-		return Pos({"x": pos1.x - pos2.x, "y": pos1.y - pos2.y, "z": pos1.z - pos2.z})
+		return Pos(pos1.x - pos2.x, pos1.y - pos2.y, pos1.z - pos2.z)
 
 	def mult(self, pos, lmbd):
-		return Pos({"x": pos.x * lmbd, "y": pos.y * lmbd, "z": pos.z * lmbd})
+		return Pos(pos.x * lmbd, pos.y * lmbd, pos.z * lmbd)
 
 	def div(self, pos, lmbd):
 		return self.mult(self, pos, 1/lmbd)
 
 	def round(self, pos):
-		return Pos({"x": round(pos.x), "y": round(pos.y), "z": round(pos.z)})
+		return Pos(round(pos.x), round(pos.y), round(pos.z))

@@ -15,9 +15,9 @@ import libminetest.logger
 import libminetest.map
 import libminetest.schematics
 
-pos_import = libminetest.utils.Pos({"x": 300, "y": 100, "z": 300})
-pos1_export = libminetest.utils.Pos({"x": -10, "y": -10, "z": -10})
-pos2_export = libminetest.utils.Pos({"x": 10, "y": 10, "z": 10})
+pos_import = libminetest.utils.Pos(300, 100, 300)
+pos1_export = libminetest.utils.Pos(-10, -10, -10)
+pos2_export = libminetest.utils.Pos(10, 10, 10)
 
 libminetest.logger.init_logging(debug=True)
 

@@ -68,10 +68,7 @@ def removeUnknowns():
 
             print("\n[{0:3.2f}%] {1} nodes removed".format(pct, len(unknowns)))
             print("[{0:3.2f}%] Saving mapblock {1}".format(pct, absi))
-            u.store(i, k.implode())
-            u.write(i)
-
-        u.uncache(i)
+            u.write(i, k.implode())
 
     u.commit()
 

@@ -9,7 +9,7 @@
 from .utils import Pos
 
 class NodeTimerRef:
-    def __init__(self, pos = Pos(), timeout = 0.0, elapsed = 0.0):
+    def __init__(self, pos = Pos(0, 0, 0), timeout = 0.0, elapsed = 0.0):
         self.pos = pos
         self.timeout = timeout
         self.elapsed = elapsed
@@ -35,7 +35,7 @@ class NodeTimerRef:
         return self.active
 
 class Node:
-    def __init__(self, itemstring, param1 = 0, param2 = 0, pos = Pos()):
+    def __init__(self, itemstring, param1 = 0, param2 = 0, pos = Pos(0, 0, 0)):
         self.pos = pos
         self.itemstring = itemstring
         self.param1, self.param2 = param1, param2

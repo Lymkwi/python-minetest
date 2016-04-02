@@ -23,7 +23,7 @@ class NodeMetaRef:
         """
 
         self.data = meta or dict()
-        self.pos = spos or Pos()
+        self.pos = spos or Pos(0, 0, 0)
         self.inv = inv or InvRef()
 
     def get_raw(self, key):
