@@ -623,6 +623,7 @@ class MapInterface:
 		self.mapblocks[mapblockpos] = MapBlock(abspos = mapblockpos)
 		self.mod_cache.add(mapblockpos)
 		self.cache_history.add(mapblockpos)
+		self.check_cache()
 
 	# Node interface stuff
 	def check_for_pos(self, mapblockpos):
