@@ -48,7 +48,18 @@ foreach size_x * size_y * size_z:
 # Definitions
 
 class Schematic:
+	"""
+	Class representing a schematic (loaded from a file, built from an import, etc),
+	made to manage the said schematic (import from and export to a file, map)
+	"""
 	def __init__(self, filename = None):
+		"""
+		Initialization function for the Schematic object
+
+		Arguments :
+		 - filename, optional, is a path to a file to load the schematic from (if provided)
+		"""
+
 		self.filename = filename
 		self.loaded = False
 		self._init_data()
@@ -56,6 +67,10 @@ class Schematic:
 			self.load_from_file(filename)
 
 	def _init_data(self):
+		"""
+		Resets (initializes) the object's data to default values
+		"""
+
 		self.version = -1
 		self.size = {}
 		self.y_slice_probs = {}
@@ -63,6 +78,13 @@ class Schematic:
 		self.data = {}
 
 	def load(self, data):
+		"""
+		Load a schematic from a provided BytesIO object
+
+		Arguments :
+		 - data, mandatory, is the BytesIO object from which to load the schematic
+		"""
+
 		self._init_data()
 		self.loaded = False
 
@@ -108,6 +130,10 @@ class Schematic:
 		self.loaded = True
 
 	def export(self):
+		"""
+		Export the current schematic into a BytesIO object, which can directly be written in a file
+		"""
+
 		if not self.loaded:
 			return
 
@@ -148,6 +174,15 @@ class Schematic:
 		return data
 
 	def load_from_file(self, filename):
+		"""
+		Load a schematic from a file (which path is provided as argument)
+
+		Arguments :
+		 - filename, mandatory, is the path to the file which to read and load data from
+
+		Note : This method gets a BytesIO object from `open` and passes it to self.load
+		"""
+
 		try:
 			ifile = open(filename, "rb")
 		except Exception as err:
@@ -157,6 +192,15 @@ class Schematic:
 		self.load(ifile)
 
 	def export_to_file(self, filename):
+		"""
+		Export the content of the current object to a file, which path is provided as argument
+
+		Arguments :
+		 - filename, mandatory, is the path to the file in which to save the binary form of this object's schematic
+
+		Note : This method writes the content of the BytesIO object returned by self.export
+		"""
+
 		try:
 			ofile = open(filename, "wb")
 		except Exception as err:
@@ -166,6 +210,35 @@ class Schematic:
 		ofile.write(self.export().read())
 
 	def serialize_schematic(self, schemtab):
+		"""
+		Load schematic data from a dictionary similar to the Lua tables provided to minetest.serialize_schematic
+		This is what the dictionary should look like :
+
+				Dict
+				|
+		[mandatory]	+ -----	"size" (dict)
+			|	|	|
+			|	|	+ - "x" : integer
+			|	|	+ - "y" : integer
+			|	|	+ - "z" : integer
+				|
+		[optional]	+ -----	"y_slice_probs" (list)
+			|	|	|
+			|	|	+ - 1 element per slice (len(schemtab["y_slice_probs"]) == schemtab["size"]["y"])
+				|
+		[mandatory]	+ ----- "data" (list of dicts)
+			|		|
+			|		+ -----	1 element per node (len(schemtab["data"]) == schemtab["size"]["x"] * schemtab["size"]["y"] * schemtab["size"]["z"])
+			|			|
+			|			+ - "name" : string
+			|			+ - "prob" : integer (range 0, 256)
+			[optional]		+ - "param2" : integer
+				|		+ - "force_place" : boolean
+
+		Arguments :
+		 - schemtab, mandatory, is the table containing all the mandatory fields needed to import a schematic into the current object
+		"""
+
 		self._init_data()
 
 		self.version = 4
@@ -188,6 +261,13 @@ class Schematic:
 		self.loaded = True
 
 	def get_node(self, pos):
+		"""
+		Return a node at the provided pos in the current schematic
+
+		Arguments :
+		 - pos, mandatory, is a Pos object refering to the node to get in the currently loaded schematic
+		"""
+
 		if not self.loaded:
 			return
 
