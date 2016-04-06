@@ -509,7 +509,7 @@ class MapVessel:
 
 		logger.warning("WARNING: Emptying the entire map of its mapblocks")
 		try:
-			self.cur.execute("DELETE from `blocks` WHERE `pos`")
+			self.cur.execute("DELETE from `blocks` where pos or pos == 0")
 		except _sql.OperationalError as err:
 			raise MapError("Error while removing all mapblock : {0}".format(err))
 
