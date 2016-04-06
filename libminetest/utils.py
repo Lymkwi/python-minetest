@@ -71,7 +71,7 @@ class Pos:
         return self.x == other.x and self.y == other.y and self.z == other.z
 
     def getAsInt(self, max_val = 16):
-        return int64((self.z % max_val) * max_val * max_val + (self.y % max_val) * max_val + (self.x % max_val))
+        return self.z * max_val * max_val + self.y * max_val + self.x
 
     def getAsTuple(self):
         return (self.x, self.y, self.z)

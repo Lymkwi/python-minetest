@@ -163,7 +163,7 @@ class MapBlock:
 
 	def check_pos(self, mapblockpos):
 		if mapblockpos < 0 or mapblockpos >= 4096:
-			raise OutOfBordersCoordinates
+			raise OutOfBordersCoordinates("Invalid position : " + str(mapblockpos))
 
 	def get_node(self, mapblockpos):
 		self.check_pos(mapblockpos)
@@ -638,7 +638,7 @@ class MapInterface:
 		if not self.check_for_pos(mapblockpos):
 			return Node("ignore", pos = pos)
 
-		return self.mapblocks[mapblockpos].get_node(pos.getAsInt())
+		return self.mapblocks[mapblockpos].get_node(Pos(pos.x % 16, pos.y % 16, pos.z % 16).getAsInt())
 
 	def set_node(self, pos, node):
 		mapblock = determineMapBlock(pos)
@@ -649,7 +649,7 @@ class MapInterface:
 		node.pos = pos
 		self.flag_mod(mapblockpos)
 
-		return self.mapblocks[mapblockpos].set_node(pos.getAsInt(), node)
+		return self.mapblocks[mapblockpos].set_node(Pos(pos.x % 16, pos.y % 16, pos.z % 16).getAsInt(), node)
 
 	def remove_node(self, pos):
 		return self.set_node(self, pos, Node("air"))
