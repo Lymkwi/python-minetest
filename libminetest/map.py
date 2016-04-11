@@ -442,6 +442,17 @@ class MapVessel:
 	def __str__(self):
 		return "mapfile vessel for {0}".format(self.mapfile)
 
+	@classmethod
+	def create(cls, path):
+		k = cls(path)
+		try:
+			k.cur.execute("CREATE TABLE IF NOT EXISTS `blocks` (\n`pos` INT PRIMARY KEY,\n`data` BLOB\n);\n")
+
+		except _sql.OperationalError as err:
+			raise MapError("Couln't create database : {}".format(err))
+
+		return k
+
 	def get_all_mapblock_ids(self):
 		try:
 			self.cur.execute("SELECT \"pos\" from \"blocks\"")
@@ -452,7 +463,7 @@ class MapVessel:
 
 	def open(self, mapfile, backend = "sqlite3"):
 		try:
-			self.conn = _sql.connect(mapfile)
+			self.conn = _sql.connect(mapfile)#, 10)
 			self.cur = self.conn.cursor()
 		except _sql.OperationalError as err:
 			raise MapError("Error opening database : {0}".format(err))
