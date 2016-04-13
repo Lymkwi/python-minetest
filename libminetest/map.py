@@ -675,7 +675,18 @@ class MapInterface:
 		return self.mapblocks[mapblockpos].get_meta(pos.getAsInt())
 
 	# The schematics stuff
-	def export_schematic(self, startpos, endpos, forceplace = True):
+	def export_schematic(self, startpos, endpos, ignore=[], forceplace=True):
+		"""
+		Exports a schematic from the currently loaded map
+
+		Arguments :
+		 - startpos, mandatory, is the position of a corner of the square which will be exported
+		 - endpos, mandatory, is the position of the corner of the square to be exported opposed to startpos
+		 - ignore, optional, is a keyword argument which should contain a list of nodes to ignore when exporting
+		   (they will be referenced to as ignore)
+
+		Returns a `libminetest.schematics.Schematic` object
+		"""
 
 		# Get the corners first
 		minpos = Pos(min(startpos.x, endpos.x), min(startpos.y, endpos.y), min(startpos.z, endpos.z))
@@ -687,8 +698,12 @@ class MapInterface:
 		for x in range(schem["size"]["x"]):
 			for y in range(schem["size"]["y"]):
 				for z in range(schem["size"]["z"]):
+					name = self.get_node(Pos(minpos.x + x, minpos.y + y, minpos.z + z)).get_name()
+					if name in ignore:
+						name = "ignore"
+
 					schem["data"][x + (y * schem["size"]["x"]) + (z * schem["size"]["y"] * schem["size"]["x"])] = {
-						"name": self.get_node(Pos(minpos.x + x, minpos.y + y, minpos.z + z)).get_name(),
+						"name": name,
 						"prob": 255,
 						"force_place": forceplace
 					}
@@ -698,7 +713,17 @@ class MapInterface:
 
 		return sch
 
-	def import_schematic(self, pos, schematic, stage_save=0):
+	def import_schematic(self, pos, schematic, ignore=[], stage_save=0):
+		"""
+		Imports a schematic into the currently loaded map
+
+		Arguments :
+		 - pos, mandatory, is the position at which the schematic will be loaded
+		 - schematic, mandatory, is a Schematic object holding the schematic that will be loaded
+		 - ignore, optional, is a list of node names to ignore when loading the schematic ; those nodes will not be placed
+		 - stage_save, optional, is an interval of percentage at the end of which the current progress is saved (used for gigantic imports)
+		"""
+
 		k = schematic.size["x"] * schematic.size["y"] * schematic.size["z"]
 		tenth = 0
 		for y in range(schematic.size["y"]):
@@ -708,6 +733,9 @@ class MapInterface:
 					rpos = Pos(x, y, z)
 					pct = (1 + z + (x * schematic.size["z"]) + (y * schematic.size["z"] * schematic.size["x"])) / k * 100
 					node = schematic.get_node(rpos)
+					if node.get_name() == "ignore" or node.get_name() in ignore:
+						continue
+
 					vpos = v.add(pos, rpos)
 					pctstr = "[{0:3.5f}%] Placing nodes..".format(pct)
 
