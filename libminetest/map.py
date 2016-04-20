@@ -430,6 +430,26 @@ class MapBlock:
 
 		return self.node_meta.get(abspos) or NodeMetaRef()
 
+	def get_bitmask(self):
+		"""
+		Returns the mapblock's bitmask, an integer value
+		"""
+
+		return self.bitmask
+
+	def set_bitmask(self, bitmask):
+		"""
+		Set the mapblock's bitmask, an integer value between 0 and 15 included
+
+		Arguments :
+		 - bitmask, mandatory, is an integer between 0 and 15 included representing the mapblock's bitmask
+		"""
+
+		if not (type(bitmask) == type(0) and bitmask >= 0 and bitmask < 16):
+			raise MapError("Invalid bitmask : {}".format(bitmask))
+
+		self.bitmask = bitmask
+
 
 """
 	MapVessel
