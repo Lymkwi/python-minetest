@@ -39,7 +39,7 @@ class MapBlock:
 			self.nodes = dict()
 			self.version = 25
 			self.mapblocksize = 16 # Normally
-			self.bitmask = GENERATED & LIGHTING_EXPIRED
+			self.bitmask = GENERATED | LIGHTING_EXPIRED
 			self.content_width = 2
 			self.param_width = 2
 			self.node_meta = dict()
