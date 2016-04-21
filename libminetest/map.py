@@ -733,7 +733,7 @@ class MapInterface:
 
 		return sch
 
-	def import_schematic(self, pos, schematic, ignore=[], stage_save=0):
+	def import_schematic(self, pos, schematic, ignore=[], forceplace = False, stage_save=0):
 		"""
 		Imports a schematic into the currently loaded map
 
@@ -741,6 +741,7 @@ class MapInterface:
 		 - pos, mandatory, is the position at which the schematic will be loaded
 		 - schematic, mandatory, is a Schematic object holding the schematic that will be loaded
 		 - ignore, optional, is a list of node names to ignore when loading the schematic ; those nodes will not be placed
+		 - forceplace, optional, is a boolean, prevent placing nodes over anything that is not air
 		 - stage_save, optional, is an interval of percentage at the end of which the current progress is saved (used for gigantic imports)
 		"""
 
@@ -761,6 +762,11 @@ class MapInterface:
 
 					while True:
 						try:
+							if not forceplace:
+								oldnode = self.get_node(vpos)
+								if oldnode.get_name() != "air":
+									break
+
 							self.set_node(vpos, node)
 							break
 						except IgnoreContentReplacementError:
