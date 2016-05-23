@@ -715,10 +715,13 @@ class MapInterface:
 		schem = {}
 		schem["size"] = {"x": maxpos.x - minpos.x, "y": maxpos.y - minpos.y, "z": maxpos.z - minpos.y}
 		schem["data"] = {}
+		k = schem["size"]["x"] * schem["size"]["y"] * schem["size"]["z"]
 		for x in range(schem["size"]["x"]):
 			for y in range(schem["size"]["y"]):
 				for z in range(schem["size"]["z"]):
 					name = self.get_node(Pos(minpos.x + x, minpos.y + y, minpos.z + z)).get_name()
+					pct = (1 + z + (y * schem["size"]["z"]) + (x * schem["size"]["z"] * schem["size"]["y"])) / k * 100
+					pctstr = "[{0:3.5f}%] Getting nodes..".format(pct)
 					if name in ignore:
 						name = "ignore"
 
@@ -727,6 +730,7 @@ class MapInterface:
 						"prob": 255,
 						"force_place": forceplace
 					}
+					logger.debug(pctstr)
 
 		sch = Schematic()
 		sch.serialize_schematic(schem)
@@ -759,7 +763,6 @@ class MapInterface:
 
 					vpos = v.add(pos, rpos)
 					pctstr = "[{0:3.5f}%] Placing nodes..".format(pct)
-
 					while True:
 						try:
 							if not forceplace:
