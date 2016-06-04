@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-# -*- encoding: utf8 -*-
+# -*- encoding: utf-8 -*-
 ###########################
 ## Schematics for Python-MT
 ##
@@ -9,6 +9,7 @@
 from .nodes import Node
 from .utils import readU16, readU8, readU32, writeU16, writeU8, writeU32
 from .logger import logger
+from .errors import InvalidSchematicSignature
 
 import zlib
 from io import BytesIO
@@ -78,56 +79,56 @@ class Schematic:
 		self.data = {}
 
 	def load(self, data):
+                """
+	        Load a schematic from a provided BytesIO object
+
+	        Arguments :
+	         - data, mandatory, is the BytesIO object from which to load the schematic
 		"""
-		Load a schematic from a provided BytesIO object
 
-		Arguments :
-		 - data, mandatory, is the BytesIO object from which to load the schematic
-		"""
+                self._init_data()
+                self.loaded = False
 
-		self._init_data()
-		self.loaded = False
+                try:
+                        assert(data.read(4) == b"MTSM")
+                except AssertionError:
+                        logger.error("{0} : Couldn't load schematic from data : invalid signature".format(self))
+                        data.seek(0)
+                        raise InvalidSchematicSignature("First 4 bytes read are : {}".format(data.read(4)))
 
-		try:
-			assert(data.read(4) == b"MTSM")
-		except AssertionError:
-			logger.error("{0} : Couldn't load schematic from data : invalid signature".format(self))
-			return
+                self.version = readU16(data)
+                self.size = {"x": readU16(data), "y": readU16(data), "z": readU16(data)}
 
-		self.version = readU16(data)
-		self.size = {"x": readU16(data), "y": readU16(data), "z": readU16(data)}
+                logger.debug("Read size : ({0}, {1}, {2})".format(self.size["x"], self.size["y"], self.size["z"]))
 
-		logger.debug("Read size : ({0}, {1}, {2})".format(self.size["x"], self.size["y"], self.size["z"]))
+                for i in range(self.size["y"]):
+                        p = readU8(data)
+                        if p < 127:
+                                self.y_slice_probs[i] = p
 
-		for i in range(self.size["y"]):
-			p = readU8(data)
-			if p < 127:
-				self.y_slice_probs[i] = p
+                for _ in range(readU16(data)):
+                        nodename = ""
+                        for _ in range(readU16(data)):
+                                nodename += chr(readU8(data))
+                        self.nodes.append(nodename)
 
-		for _ in range(readU16(data)):
-			nodename = ""
-			for _ in range(readU16(data)):
-				nodename += chr(readU8(data))
-			self.nodes.append(nodename)
+                bulk = BytesIO(zlib.decompress(data.read()))
+                nodecount = self.size["x"] * self.size["y"] * self.size["z"]
+                self.data = {}
+                logger.debug("Which makes {0} nodes to read".format(nodecount))
+                for i in range(nodecount):
+                        self.data[i] = Node(self.nodes[readU16(bulk)])
+                logger.debug("Nodes read")
 
+                for i in range(nodecount):
+                        self.data[i].set_param1(readU8(bulk))
+                logger.debug("Param1 read")
 
-		bulk = BytesIO(zlib.decompress(data.read()))
-		nodecount = self.size["x"] * self.size["y"] * self.size["z"]
-		self.data = {}
-		logger.debug("Which makes {0} nodes to read".format(nodecount))
-		for i in range(nodecount):
-			self.data[i] = Node(self.nodes[readU16(bulk)])
-		logger.debug("Nodes read")
+                for i in range(nodecount):
+                        self.data[i].set_param2(readU8(bulk))
+                logger.debug("Param2 read")
 
-		for i in range(nodecount):
-			self.data[i].set_param1(readU8(bulk))
-		logger.debug("Param1 read")
-
-		for i in range(nodecount):
-			self.data[i].set_param2(readU8(bulk))
-		logger.debug("Param2 read")
-
-		self.loaded = True
+                self.loaded = True
 
 	def export(self):
 		"""

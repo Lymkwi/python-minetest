@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-# -*- encoding: utf8 -*-
+# -*- encoding: utf-8 -*-
 ###########################
 ## Rrrors for Python-MT
 ##
@@ -57,4 +57,15 @@ class InventoryError(MinetestException):
 
 class InventoryDeserializationError(InventoryError):
     "Exception raised when one tries to deserialize an invalid inventory string representation"
+    pass
+
+##=========================================##
+# 4. Schematic Errors
+
+class SchematicError(MinetestException):
+    "Generic schematic exception"
+    __cause__ = "Error with schematic"
+
+class InvalidSchematicSignature(SchematicError):
+    "Exception raised when an invalid signature is detected upon reading a Schematic file"
     pass
