@@ -11,6 +11,7 @@
 
 import libminetest.map
 import libminetest.utils
+from libminetest.nodes import Node
 import time
 
 def removeUnknowns():
@@ -64,7 +65,7 @@ def removeUnknowns():
                     for z in range(16):
                         noderef = k.get_node(x + y * 16 + z * 16 * 16)
                         if noderef.get_name() in unknowns:
-                            k.remove_node(x + y * 16 + z * 16 * 16)
+                            k.set_node(x + y * 16 + z * 16 * 16, Node("air"))
 
             print("\n[{0:3.2f}%] {1} nodes removed".format(pct, len(unknowns)))
             print("[{0:3.2f}%] Saving mapblock {1}".format(pct, absi))
