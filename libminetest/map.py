@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-# -*- encoding: utf8 -*-
+# -*- encoding: utf-8 -*-
 ###########################
 ## Maps for Python-MT
 ##
@@ -658,10 +658,10 @@ class MapInterface:
 
 	# Node interface stuff
 	def check_for_pos(self, mapblockpos):
-		if not self.mapblocks.get(mapblockpos):
-			return self.load_mapblock(mapblockpos)
+                if self.mapblocks.get(mapblockpos) == None:
+                        return self.load_mapblock(mapblockpos)
 
-		return True
+                return True
 
 	def get_node(self, pos):
 		mapblock = determineMapBlock(pos)
@@ -672,15 +672,15 @@ class MapInterface:
 		return self.mapblocks[mapblockpos].get_node(Pos(pos.x % 16, pos.y % 16, pos.z % 16).getAsInt())
 
 	def set_node(self, pos, node):
-		mapblock = determineMapBlock(pos)
-		mapblockpos = getMapBlockPos(mapblock)
-		if not self.check_for_pos(mapblockpos):
-			raise IgnoreContentReplacementError("Pos: {0}".format(pos))
+                mapblock = determineMapBlock(pos)
+                mapblockpos = getMapBlockPos(mapblock)
+                if not self.check_for_pos(mapblockpos):
+                        raise IgnoreContentReplacementError("Pos: {0}".format(pos))
 
-		node.pos = pos
-		self.flag_mod(mapblockpos)
+                node.pos = pos
+                self.flag_mod(mapblockpos)
 
-		return self.mapblocks[mapblockpos].set_node(Pos(pos.x % 16, pos.y % 16, pos.z % 16).getAsInt(), node)
+                return self.mapblocks[mapblockpos].set_node(Pos(pos.x % 16, pos.y % 16, pos.z % 16).getAsInt(), node)
 
 	def remove_node(self, pos):
 		return self.set_node(self, pos, Node("air"))
@@ -738,7 +738,7 @@ class MapInterface:
 		return sch
 
 	def import_schematic(self, pos, schematic, ignore=[], forceplace = False, stage_save=0):
-		"""
+                """
 		Imports a schematic into the currently loaded map
 
 		Arguments :
@@ -746,41 +746,44 @@ class MapInterface:
 		 - schematic, mandatory, is a Schematic object holding the schematic that will be loaded
 		 - ignore, optional, is a list of node names to ignore when loading the schematic ; those nodes will not be placed
 		 - forceplace, optional, is a boolean, prevent placing nodes over anything that is not air
-		 - stage_save, optional, is an interval of percentage at the end of which the current progress is saved (used for gigantic imports)
-		"""
+                 - stage_save, optional, is an interval of percentage at the end of which the current progress is saved (used for gigantic imports)
+                """
 
-		k = schematic.size["x"] * schematic.size["y"] * schematic.size["z"]
-		tenth = 0
-		for y in range(schematic.size["y"]):
-			for x in range(schematic.size["x"]):
-				for z in range(schematic.size["z"]):
-					v = Vector()
-					rpos = Pos(x, y, z)
-					pct = (1 + z + (x * schematic.size["z"]) + (y * schematic.size["z"] * schematic.size["x"])) / k * 100
-					node = schematic.get_node(rpos)
-					if node.get_name() == "ignore" or node.get_name() in ignore:
-						continue
+                k = schematic.size["x"] * schematic.size["y"] * schematic.size["z"]
+                tenth = 0
+                for y in range(schematic.size["y"]):
+                        for x in range(schematic.size["x"]):
+                                for z in range(schematic.size["z"]):
+                                        v = Vector()
+                                        rpos = Pos(x, y, z)
+                                        pct = (1 + z + (x * schematic.size["z"]) + (y * schematic.size["z"] * schematic.size["x"])) / k * 100
+                                        node = schematic.get_node(rpos)
+                                        if node.get_name() == "ignore" or node.get_name() in ignore:
+                                                continue
 
-					vpos = v.add(pos, rpos)
-					pctstr = "[{0:3.5f}%] Placing nodes..".format(pct)
-					while True:
-						try:
-							if not forceplace:
-								oldnode = self.get_node(vpos)
-								if oldnode.get_name() != "air":
-									break
+                                        vpos = v.add(pos, rpos)
+                                        pctstr = "[{0:3.5f}%] Placing nodes..".format(pct)
+                                        while True:
+                                                try:
+                                                        if not forceplace:
+                                                                oldnode = self.get_node(vpos)
+                                                                if oldnode.get_name() != "air" and oldnode.get_name() != "ignore":
+                                                                        break
 
-							self.set_node(vpos, node)
-							break
-						except IgnoreContentReplacementError:
-							self.init_mapblock(getMapBlockPos(determineMapBlock(v.add(pos, rpos))))
-							continue
-						logger.debug(pctstr)
-						if stage_save and int(pct/stage_save) != tenth:
-							tenth = int(pct/stage_save)
-							logger.debug("Saving partial import at {0:3.5f}%..".format(pct))
-							logger.debug("{0} mapblocks to save".format(len(self.mod_cache)))
-							self.save()
+                                                        self.set_node(vpos, node)
+                                                        break
+
+                                                except IgnoreContentReplacementError:
+                                                        self.init_mapblock(getMapBlockPos(determineMapBlock(v.add(pos, rpos))))
+                                                        continue
+
+                                        logger.debug(pctstr)
+                                        if stage_save and int(pct/stage_save) != tenth:
+                                                tenth = int(pct/stage_save)
+                                                logger.debug("Saving partial import at {0:3.5f}%..".format(pct))
+                                                logger.debug("{0} mapblocks to save".format(len(self.mod_cache)))
+                                                self.save()
+
 
 	# Method to save
 	def save(self):
