@@ -238,6 +238,27 @@ def testConfiguration():
 
 	print(" --> Test successful")
 
+def testLightingDone(map):
+	import random
+	db = libminetest.map.MapInterface(map)
+	i = 0
+	while True:
+		i = random.randrange(-4096, 4096)
+		if db.load_mapblock(i):
+			break
+
+	mb = db.mapblocks[i]
+	lc = []
+	for _ in range(16):
+		lc.append(round(random.random()))
+	print("  -> Lighting Complete : {0}".format(lc))
+	mb.set_lighting_complete(lc)
+	print("  -> That's {0} in decimal".format(mb.lighting_complete))
+	nlc = mb.get_lighting_complete()
+	print("  -> Retur is {0}".format(nlc))
+	assert(nlc == lc)
+	print("  ==> Identical \u2713")
+
 
 def main(map):
 	print("=> Tests will begin now")
@@ -248,7 +269,7 @@ def main(map):
 	testMapBlockLoad(map)
 	print("  => Test took {0:.10f}s".format(time.time()-s))
 
-	print("=> Signed Endians")
+	print("=> Unsigned Big Endians")
 	s = time.time()
 	testEndians()
 	print("  => Test took {0:.10f}s".format(time.time()-s))
@@ -263,7 +284,12 @@ def main(map):
 	testSetNode(map)
 	print("  => Test took {0:.10f}s".format(time.time()-s))
 
-	print("=> inventory manipulation (WIP)")
+	print("=> Lighting Complete Set/Get")
+	s = time.time()
+	testLightingDone(map)
+	print("  => Test took {0:.10f}s".format(time.time()-s))
+
+	print("=> Inventory manipulation (WIP)")
 	s = time.time()
 	invManip(map)
 	print("  => Test took {0:.10f}s".format(time.time()-s))

@@ -28,6 +28,9 @@ DAY_NIGHT_DIFFERS = 2
 LIGHTING_EXPIRED = 4
 GENERATED = 8
 
+# Protocol Version
+PROTOCOL_VERSION = 27
+
 class MapBlock:
 	def __init__(self, data = None, abspos = 0):
 		self.abspos = abspos
@@ -37,7 +40,7 @@ class MapBlock:
 			self.explode(data)
 		else:
 			self.nodes = dict()
-			self.version = 25
+			self.version = PROTOCOL_VERSION
 			self.mapblocksize = 16 # Normally
 			self.bitmask = GENERATED | LIGHTING_EXPIRED
 			self.content_width = 2
@@ -61,6 +64,14 @@ class MapBlock:
 			self.name_id_mappings = self.create_name_id_mappings()
 			self.num_name_id_mappings = len(self.name_id_mappings)
 
+			self.lighting_complete = 0
+
+	def set_lighting_complete(self, tbl):
+		self.lighting_complete = int("".join([str(x) for x in tbl]), base = 2)
+
+	def get_lighting_complete(self):
+		return [(self.lighting_complete & pow(2, 15-i)) >> (15-i) for i in range(16)]
+
 	def create_name_id_mappings(self):
 		names = []
 		for node in self.nodes.values():
@@ -73,6 +84,8 @@ class MapBlock:
 		data = BytesIO(b"")
 		writeU8(data, self.version)
 		writeU8(data, self.bitmask)
+		if self.version >= 27:
+			writeU16(data, self.lighting_complete)
 		writeU8(data, self.content_width)
 		writeU8(data, self.param_width)
 
@@ -83,6 +96,7 @@ class MapBlock:
 
 		for node in self.nodes.values():
 			node_data["param0"].append(self.name_id_mappings.index(node.itemstring))
+			#node_data["param0"].append(node.param0)
 			node_data["param1"].append(node.param1)
 			node_data["param2"].append(node.param2)
 
@@ -191,6 +205,8 @@ class MapBlock:
 		self.mapblocksize = 16 # Normally
 		self.version = readU8(data)
 		self.bitmask = readU8(data)
+		if self.version >= 27:
+			self.lighting_complete = readU16(data)
 		self.content_width = readU8(data)
 		self.param_width = readU8(data)
 
@@ -398,7 +414,7 @@ class MapBlock:
 			name = "".join([ chr(readU8(data)) for _ in range(readU16(data)) ])
 			self.name_id_mappings[id] = name
 
-		if self.version == 25:
+		if self.version >= 25:
 			# u8 single_timer_data_length
 			self.single_timer_data_length = readU8(data)
 
