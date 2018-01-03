@@ -204,6 +204,7 @@ class MapBlock:
 
 		self.mapblocksize = 16 # Normally
 		self.version = readU8(data)
+		assert(self.version <= PROTOCOL_VERSION)
 		self.bitmask = readU8(data)
 		if self.version >= 27:
 			self.lighting_complete = readU16(data)
