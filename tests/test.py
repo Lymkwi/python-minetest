@@ -242,8 +242,13 @@ def testLightingDone(map):
 	import random
 	db = libminetest.map.MapInterface(map)
 	i = 0
+	blocks = db.container.get_all_mapblock_ids()
+	if len(blocks) == 0:
+		print("!!!> Lighting test cannot proceed : no blocks generated")
+		return
+
 	while True:
-		i = random.randrange(-4096, 4096)
+		i = random.choice(blocks)
 		if db.load_mapblock(i):
 			break
 
