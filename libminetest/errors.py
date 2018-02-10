@@ -17,6 +17,10 @@ class MapError(MinetestException):
     "Generic map exception"
     pass
 
+class UnsupportedMapBlockError(MapError):
+	"Map is of a version beyond what we can use"
+	__cause__ = "The version of that MapBlock is higher than our currently supported version"
+
 class EmptyMapVesselError(MinetestException):
     "Exception raised when one tries using a MapVessel without loading any database in first"
     __cause__ = "Tried to use empty mapfile vessel"
