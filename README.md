@@ -1,8 +1,8 @@
 Python Minetest
 =================
 
-A library to use on Minetest's files
-ßÿ Mg/LeMagnesium
+A library to use on Minetest[https://github.com/minetest/minetest]'s files
+ßÿ Mg/LeMagnesium/Lymkwi
 
-License : WTFPL (so far)
-Note: Still unstable to use
+License : CC0
+Note: Should be fairly usable by now
